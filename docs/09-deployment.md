@@ -1,21 +1,21 @@
-# skillhub 部署架构与运维
+# skillhub Deployment Architecture and Operations
 
-## 1 运行模型
+## 1 Runtime Model
 
-当前仓库只保留两种运行方式：
+The current repository maintains only two runtime modes:
 
-- 开发环境：`make dev-all`
-  - 前端和后端运行在宿主机
-  - `docker-compose.yml` 只负责 PostgreSQL、Redis、MinIO
-- 单机交付环境：`docker compose --env-file .env.release -f compose.release.yml up -d`
-  - 前端和后端都运行在容器内
-- 使用 GitHub Actions 发布到 GHCR 的镜像
-- 默认发布 `linux/amd64` 与 `linux/arm64` 多架构镜像
-  - PostgreSQL、Redis 与应用容器一起通过 Compose 启动
+- Development environment: `make dev-all`
+  - Frontend and backend run on the host machine
+  - `docker-compose.yml` is responsible only for PostgreSQL, Redis, and MinIO
+- Single-machine delivery environment: `docker compose --env-file .env.release -f compose.release.yml up -d`
+  - Frontend and backend both run inside containers
+- Images are published to GHCR via GitHub Actions
+- By default, multi-architecture images for `linux/amd64` and `linux/arm64` are published
+  - PostgreSQL, Redis, and application containers are all started together via Compose
 
-不再维护本地构建整套 demo 容器的中间模式，也不再保留 `docker-compose.prod.yml`。
+The intermediate mode of building a full local demo container set is no longer maintained, and `docker-compose.prod.yml` is no longer retained.
 
-## 2 单机交付拓扑
+## 2 Single-Machine Delivery Topology
 
 ```
 ┌──────────────┐
@@ -36,53 +36,53 @@
  PostgreSQL  Redis
 ```
 
-说明：
-- Web 容器提供静态资源，并将 `/api/*`、`/oauth2/*`、`/.well-known/*` 反代到后端
-- 后端默认运行 `docker` profile，不再启用本地 mock 登录
-- PostgreSQL / Redis 默认只绑定 `127.0.0.1`
-- 对象存储推荐使用外部 S3 / OSS，通过环境变量注入
+Notes:
+- The Web container serves static assets and reverse-proxies `/api/*`, `/oauth2/*`, and `/.well-known/*` to the backend
+- The backend runs the `docker` profile by default; local mock login is no longer enabled
+- PostgreSQL / Redis bind only to `127.0.0.1` by default
+- Object storage is recommended to use external S3 / OSS, injected via environment variables
 
-## 3 Profile 约定
+## 3 Profile Conventions
 
-| Profile | 用途 | 说明 |
-|---------|------|------|
-| `local` | 本地源码开发能力 | 启用 mock 登录、开发种子账号、调试日志 |
-| `docker` | 容器运行时能力 | 启用容器运行时相关能力，不会自动打开首登管理员 |
+| Profile | Purpose | Notes |
+|---------|---------|-------|
+| `local` | Local source code development capabilities | Enables mock login, development seed accounts, debug logging |
+| `docker` | Container runtime capabilities | Enables container runtime-related capabilities; does not automatically open the first-login admin account |
 
-单机交付环境使用 `SPRING_PROFILES_ACTIVE=docker`，原因如下：
+The single-machine delivery environment uses `SPRING_PROFILES_ACTIVE=docker`, for the following reasons:
 
-- 生产环境不应开启 `X-Mock-User-Id` 这一类本地开发旁路能力
-- 容器环境仍然保留 `docker` profile 的运行时能力，首个管理员账户初始化不依赖该 profile，通过环境变量控制
-- 数据库、Redis、OSS、站点公网地址全部改为环境变量优先
+- Production environments should not enable `X-Mock-User-Id` and similar local development bypass capabilities
+- Container environments still retain the `docker` profile runtime capabilities; first admin account initialization does not depend on this profile and is controlled via environment variables
+- Database, Redis, OSS, and site public URL are all environment variable-first
 
-如需启用首登管理员，来源于以下环境变量：
+To enable the first-login admin account, use the following environment variables:
 
-- `BOOTSTRAP_ADMIN_ENABLED=true`（发布模板默认已开启）
-- `BOOTSTRAP_ADMIN_USERNAME`（默认 `admin`）
-- `BOOTSTRAP_ADMIN_PASSWORD`（默认 `ChangeMe!2026`）
+- `BOOTSTRAP_ADMIN_ENABLED=true` (enabled by default in the release template)
+- `BOOTSTRAP_ADMIN_USERNAME` (default: `admin`)
+- `BOOTSTRAP_ADMIN_PASSWORD` (default: `ChangeMe!2026`)
 
-建议：
+Recommendations:
 
-- 生产环境务必修改 `BOOTSTRAP_ADMIN_PASSWORD`（`validate-release-config.sh` 会拒绝默认值）
-- 完成首次登录后立即修改管理员密码
-- 如果已有外部身份源，通常不需要启用 bootstrap admin
-- `SKILLHUB_PUBLIC_BASE_URL` 应配置为最终 HTTPS 域名，避免 OAuth / Cookie / 设备码链接异常
+- In production environments, always change `BOOTSTRAP_ADMIN_PASSWORD` (`validate-release-config.sh` will reject the default value)
+- Change the admin password immediately after the first login
+- If an external identity provider is already available, the bootstrap admin typically does not need to be enabled
+- `SKILLHUB_PUBLIC_BASE_URL` should be configured as the final HTTPS domain to avoid OAuth / Cookie / device code link issues
 
-## 4 开发环境
+## 4 Development Environment
 
-开发入口保持不变：
+The development entry point remains unchanged:
 
 ```bash
 make dev-all
 ```
 
-行为：
+Behavior:
 
-- `docker-compose.yml` 启动 PostgreSQL、Redis、MinIO
-- `server` 在宿主机通过 Maven Wrapper 启动
-- `web` 在宿主机通过 Vite 启动
+- `docker-compose.yml` starts PostgreSQL, Redis, MinIO
+- `server` starts on the host machine via Maven Wrapper
+- `web` starts on the host machine via Vite
 
-常用命令：
+Common commands:
 
 ```bash
 make dev
@@ -92,9 +92,9 @@ make dev-all-down
 make dev-all-reset
 ```
 
-## 5 单机交付环境
+## 5 Single-Machine Delivery Environment
 
-### 5.1 启动
+### 5.1 Startup
 
 ```bash
 cp .env.release.example .env.release
@@ -102,149 +102,149 @@ make validate-release-config
 docker compose --env-file .env.release -f compose.release.yml up -d
 ```
 
-默认访问地址：
+Default access URLs:
 
 - Web UI: `SKILLHUB_PUBLIC_BASE_URL`
 - Backend API: `http://localhost:8080`
 
-### 5.2 关键文件
+### 5.2 Key Files
 
 - `compose.release.yml`
-  - 使用发布镜像，不在用户机器上执行本地构建
-  - 负责拉起 PostgreSQL、Redis、server、web
-  - PostgreSQL、Redis 默认只绑定到 `127.0.0.1`
-  - Web 和后端都支持运行时环境变量注入，不需要为每个环境重建镜像
+  - Uses published images; does not perform local builds on the user's machine
+  - Responsible for starting PostgreSQL, Redis, server, web
+  - PostgreSQL, Redis bind to `127.0.0.1` only by default
+  - Both Web and backend support runtime environment variable injection; no image rebuild is needed per environment
 - `.env.release.example`
-  - 运行时变量模板
-  - 包含镜像名、镜像版本、端口、数据库凭证、外部 OSS、站点公网地址和首登管理员参数
+  - Runtime variable template
+  - Contains image name, image version, ports, database credentials, external OSS, site public URL, and first-login admin parameters
 - `scripts/validate-release-config.sh`
-  - 在启动前校验 `.env.release`
-  - 可提前拦截占位值、URL 格式错误、缺失的 OSS 凭据、危险的明文默认值
+  - Validates `.env.release` before startup
+  - Can catch placeholder values, URL format errors, missing OSS credentials, and dangerous plaintext default values early
 
-### 5.3 镜像标签约定
+### 5.3 Image Tag Conventions
 
 - `edge`
-  - `main` 分支最新构建
-  - 用于内部持续验证
+  - Latest build from the `main` branch
+  - Used for internal continuous validation
 - `vX.Y.Z`
-  - 对应 Git tag
-  - 用于稳定版本交付
+  - Corresponds to a Git tag
+  - Used for stable version delivery
 - `latest`
-  - 仅在语义化版本 tag 发布时更新
+  - Updated only when a semantic version tag is released
 
-推荐：
+Recommendations:
 
-- 默认快速启动：`SKILLHUB_VERSION=latest`
-- 团队内部试用：`SKILLHUB_VERSION=edge`
-- 对外演示或严格可复现环境：固定为某个 `vX.Y.Z`
+- Default quick start: `SKILLHUB_VERSION=latest`
+- Internal team trial: `SKILLHUB_VERSION=edge`
+- External demos or strictly reproducible environments: pin to a specific `vX.Y.Z`
 
-## 6 GitHub Actions 发布流程
+## 6 GitHub Actions Release Process
 
-发布工作流文件：`.github/workflows/publish-images.yml`
+Release workflow file: `.github/workflows/publish-images.yml`
 
-触发条件：
+Trigger conditions:
 
 - `release.published`
-- 手动 `workflow_dispatch`
+- Manual `workflow_dispatch`
 
-流程：
+Process:
 
-1. 检出代码
-2. 登录 GHCR
-3. 分别构建 `server/Dockerfile` 与 `web/Dockerfile`
-4. 推送镜像：
+1. Checkout code
+2. Log in to GHCR
+3. Build `server/Dockerfile` and `web/Dockerfile` separately
+4. Push images:
    - `ghcr.io/iflytek/skillhub-server`
    - `ghcr.io/iflytek/skillhub-web`
-5. 写入 `edge` / `vX.Y.Z` / `latest` / `sha-*` 标签
-6. 同时发布 `linux/amd64` 与 `linux/arm64` manifest，避免 Apple Silicon / ARM 主机依赖模拟层
+5. Write `edge` / `vX.Y.Z` / `latest` / `sha-*` tags
+6. Publish `linux/amd64` and `linux/arm64` manifests simultaneously to avoid requiring emulation on Apple Silicon / ARM hosts
 
-## 7 配置管理
+## 7 Configuration Management
 
-前端运行时配置通过 `web/runtime-config.js.template` 注入。与认证兼容层相关的新变量如下：
+Frontend runtime configuration is injected via `web/runtime-config.js.template`. New variables related to the auth compatibility layer are as follows:
 
 - `SKILLHUB_WEB_AUTH_DIRECT_ENABLED`
-  - 是否在前端打开账号密码兼容接入层
-  - 默认应为 `false`
+  - Whether to enable the username/password compatibility integration layer on the frontend
+  - Default should be `false`
 - `SKILLHUB_WEB_AUTH_DIRECT_PROVIDER`
-  - 前端调用 `/api/v1/auth/direct/login` 时使用的 provider，例如 `private-sso`
+  - The provider used by the frontend when calling `/api/v1/auth/direct/login`, e.g., `private-sso`
 - `SKILLHUB_WEB_AUTH_SESSION_BOOTSTRAP_ENABLED`
-  - 是否在前端打开企业 SSO 被动会话兼容入口
-  - 默认应为 `false`
+  - Whether to enable the enterprise SSO passive session compatibility entry on the frontend
+  - Default should be `false`
 - `SKILLHUB_WEB_AUTH_SESSION_BOOTSTRAP_PROVIDER`
-  - 前端调用 `/api/v1/auth/session/bootstrap` 时使用的 provider，例如 `private-sso`
+  - The provider used by the frontend when calling `/api/v1/auth/session/bootstrap`, e.g., `private-sso`
 - `SKILLHUB_WEB_AUTH_SESSION_BOOTSTRAP_AUTO`
-  - 是否在登录页加载后自动尝试一次 bootstrap
-  - 建议私有版初期保持 `false`
+  - Whether to automatically attempt a bootstrap once after the login page loads
+  - Recommended to keep `false` in the early stages of a private deployment
 
-注意：
+Notes:
 
-- 前端密码兼容层打开之前，后端仍必须同步打开 `skillhub.auth.direct.enabled=true`
-- 前端开关打开之前，后端仍必须同步打开 `skillhub.auth.session-bootstrap.enabled=true`
-- 前后端任一侧未开启，都不会破坏原有登录方式；只会使该兼容入口不可用或不显示
+- Before enabling the frontend password compatibility layer, the backend must also enable `skillhub.auth.direct.enabled=true`
+- Before enabling the frontend toggle, the backend must also enable `skillhub.auth.session-bootstrap.enabled=true`
+- If either side is not enabled, it will not break the original login method; only that compatibility entry will be unavailable or hidden
 
-开发环境：
+Development environment:
 
-- 本地命令与 `docker-compose.yml`
-- 非敏感默认值可直接落库或写入本地配置
+- Local commands and `docker-compose.yml`
+- Non-sensitive default values can be committed directly or written into local configuration
 
-单机交付环境：
+Single-machine delivery environment:
 
-- 使用 `.env.release` 管理 Compose 变量
-- 如果 GHCR 包保持私有，用户需要先 `docker login ghcr.io`
-- 推荐将敏感变量放入 CI/CD Secret 或主机上的受控 `.env.release`
-- 外部对象存储通过 `SKILLHUB_STORAGE_S3_*` 注入
-- 前端反代和运行时 API 地址通过 `SKILLHUB_API_UPSTREAM` / `SKILLHUB_WEB_API_BASE_URL` 注入
-- 如果要开放真实登录，再补充 `OAUTH2_GITHUB_CLIENT_ID` / `OAUTH2_GITHUB_CLIENT_SECRET`
-- 如果要启用密码重置验证码邮件，参见：`docs/19-smtp-password-reset-email-setup.md`
+- Use `.env.release` to manage Compose variables
+- If the GHCR package is kept private, users need to `docker login ghcr.io` first
+- Recommended to store sensitive variables in CI/CD Secrets or a controlled `.env.release` on the host machine
+- External object storage is injected via `SKILLHUB_STORAGE_S3_*`
+- Frontend reverse proxy and runtime API address are injected via `SKILLHUB_API_UPSTREAM` / `SKILLHUB_WEB_API_BASE_URL`
+- To enable real login, add `OAUTH2_GITHUB_CLIENT_ID` / `OAUTH2_GITHUB_CLIENT_SECRET`
+- To enable password reset verification code emails, see: `docs/19-smtp-password-reset-email-setup.md`
 
-## 8 裸金属上线清单
+## 8 Bare Metal Launch Checklist
 
-推荐顺序：
+Recommended order:
 
-1. 准备服务器基础环境
-   - 安装 Docker Engine 与 Docker Compose Plugin
-   - 配置公网 HTTPS 入口，确保最终访问域名已经确定
-   - 打开 `80` / `443`，避免直接暴露 `5432` / `6379`
-2. 填写 `.env.release`
-   - `SKILLHUB_PUBLIC_BASE_URL` 填最终 HTTPS 域名，且不要带尾部 `/`
+1. Prepare server base environment
+   - Install Docker Engine and Docker Compose Plugin
+   - Configure public HTTPS entry point; ensure the final access domain is determined
+   - Open ports `80` / `443`; avoid directly exposing `5432` / `6379`
+2. Fill in `.env.release`
+   - Set `SKILLHUB_PUBLIC_BASE_URL` to the final HTTPS domain without a trailing `/`
    - `SKILLHUB_STORAGE_PROVIDER=s3`
-   - 按云厂商 OSS / S3 兼容参数填写 `SKILLHUB_STORAGE_S3_*`
-   - 设置非默认的 `POSTGRES_PASSWORD`
-   - 模板默认已开启首登管理员，务必将 `BOOTSTRAP_ADMIN_PASSWORD` 改为强密码
-3. 启动前校验
-   - 运行 `make validate-release-config`
-   - 确认没有 `replace-me`、`change-this-*`、`ChangeMe!2026` 之类的占位值
-4. 首次启动
-   - 运行 `docker compose --env-file .env.release -f compose.release.yml up -d`
-   - 检查 `docker compose --env-file .env.release -f compose.release.yml ps`
-   - 检查 `curl -i http://127.0.0.1:8080/actuator/health`
-5. 首登收尾
-   - 仅在启用了 `BOOTSTRAP_ADMIN_ENABLED=true` 时，使用 `BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD` 登录
-   - 立即修改管理员密码
-   - 如果后续完全走 OAuth，可将 `BOOTSTRAP_ADMIN_ENABLED=false`
+   - Fill in `SKILLHUB_STORAGE_S3_*` according to cloud provider OSS / S3 compatible parameters
+   - Set a non-default `POSTGRES_PASSWORD`
+   - The template has first-login admin enabled by default; be sure to change `BOOTSTRAP_ADMIN_PASSWORD` to a strong password
+3. Pre-launch validation
+   - Run `make validate-release-config`
+   - Confirm there are no placeholder values like `replace-me`, `change-this-*`, `ChangeMe!2026`
+4. First launch
+   - Run `docker compose --env-file .env.release -f compose.release.yml up -d`
+   - Check `docker compose --env-file .env.release -f compose.release.yml ps`
+   - Check `curl -i http://127.0.0.1:8080/actuator/health`
+5. First-login wrap-up
+   - Only if `BOOTSTRAP_ADMIN_ENABLED=true` was set, log in with `BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD`
+   - Change the admin password immediately
+   - If fully using OAuth afterward, set `BOOTSTRAP_ADMIN_ENABLED=false`
 
-## 9 可观测性
+## 9 Observability
 
-| 维度 | 方案 |
-|------|------|
-| 健康检查 | `web/nginx-health`、`server/actuator/health` |
-| 日志 | 容器 stdout / stderr |
-| 指标 | Spring Boot Actuator，后续可接 Prometheus |
+| Dimension | Solution |
+|-----------|---------|
+| Health Check | `web/nginx-health`, `server/actuator/health` |
+| Logging | Container stdout / stderr |
+| Metrics | Spring Boot Actuator; Prometheus integration available in future |
 
-## 10 安全扫描服务
+## 10 Security Scanning Service
 
-如果要启用 `skill-scanner` 后端链路，当前仓库建议按下面的方式部署：
+To enable the `skill-scanner` backend pipeline, the current repository recommends the following deployment approach:
 
-- 本地共享目录场景可以使用 `local` 模式
-- Kubernetes 或分离部署场景应使用 `upload` 模式
+- Local shared directory scenarios can use `local` mode
+- Kubernetes or separated deployment scenarios should use `upload` mode
 
-当前 `deploy/k8s` 已按分离部署建模，因此推荐：
+The current `deploy/k8s` is modeled for separated deployment, so the recommendation is:
 
 - `SKILLHUB_SECURITY_SCANNER_ENABLED=true`
 - `SKILLHUB_SECURITY_SCANNER_URL=http://skillhub-scanner:8000`
 - `SKILLHUB_SECURITY_SCANNER_MODE=upload`
 
-相关文件：
+Related files:
 
 - `deploy/k8s/scanner-deployment.yaml`
 - `deploy/k8s/services.yaml`
@@ -252,10 +252,10 @@ docker compose --env-file .env.release -f compose.release.yml up -d
 - `scripts/verify-scanner.sh`
 - `docs/security-scanning.md`
 
-## 11 数据迁移
+## 11 Data Migration
 
-Flyway 仍是唯一 schema 变更入口：
+Flyway remains the only schema change entry point:
 
-- 路径：`server/skillhub-app/src/main/resources/db/migration/`
-- 命名：`V{version}__{description}.sql`
-- 启动策略：应用容器启动时自动执行迁移
+- Path: `server/skillhub-app/src/main/resources/db/migration/`
+- Naming: `V{version}__{description}.sql`
+- Startup strategy: migrations are automatically executed when the application container starts

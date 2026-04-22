@@ -1,29 +1,29 @@
 ---
-name: 文件预览语法高亮测试计划
-description: 单元测试、集成测试、性能测试的详细计划和覆盖率矩阵
+name: File Preview Syntax Highlighting Test Plan
+description: Detailed plan and coverage matrix for unit tests, integration tests, and performance tests
 type: test-plan
 ---
 
-# 测试计划：文件预览语法高亮
+# Test Plan: File Preview Syntax Highlighting
 
-## 1. 单元测试
+## 1. Unit Tests
 
-### 测试类：`CodeRenderer.test.tsx`
-**位置**：`web/src/features/skill/__tests__/code-renderer.test.tsx`
+### Test Class: `CodeRenderer.test.tsx`
+**Location**: `web/src/features/skill/__tests__/code-renderer.test.tsx`
 
-| 测试方法 | 覆盖用例 | 描述 |
+| Test Method | Covered Cases | Description |
 |---------|---------|------|
-| `renders Python code with syntax highlighting` | AC-P-001 | 验证 Python 代码正确渲染，关键字着色 |
-| `renders Shell script with syntax highlighting` | AC-P-002 | 验证 Shell 脚本正确渲染，命令着色 |
-| `renders JSON with syntax highlighting` | AC-P-003 | 验证 JSON 正确渲染，键值着色 |
-| `renders YAML with syntax highlighting` | AC-P-004 | 验证 YAML 正确渲染，结构清晰 |
-| `falls back to plain text for unknown language` | AC-E-001 | 验证无法识别语言时降级到纯文本 |
-| `handles empty code gracefully` | AC-E-005 | 验证空内容不报错 |
-| `handles Unicode characters correctly` | AC-B-006 | 验证 Unicode 字符（中文）正确显示 |
-| `escapes HTML tags to prevent XSS` | AC-S-001 | 验证 HTML 标签被转义 |
-| `applies correct CSS classes for theming` | AC-P-007 | 验证 CSS 类名与 Markdown 一致 |
+| `renders Python code with syntax highlighting` | AC-P-001 | Verify Python code is correctly rendered with keyword coloring |
+| `renders Shell script with syntax highlighting` | AC-P-002 | Verify Shell script is correctly rendered with command coloring |
+| `renders JSON with syntax highlighting` | AC-P-003 | Verify JSON is correctly rendered with key-value coloring |
+| `renders YAML with syntax highlighting` | AC-P-004 | Verify YAML is correctly rendered with clear structure |
+| `falls back to plain text for unknown language` | AC-E-001 | Verify fallback to plain text when language is unrecognized |
+| `handles empty code gracefully` | AC-E-005 | Verify empty content does not cause errors |
+| `handles Unicode characters correctly` | AC-B-006 | Verify Unicode characters (Chinese) are displayed correctly |
+| `escapes HTML tags to prevent XSS` | AC-S-001 | Verify HTML tags are escaped |
+| `applies correct CSS classes for theming` | AC-P-007 | Verify CSS class names are consistent with Markdown |
 
-**测试数据**：
+**Test Data**:
 ```typescript
 const pythonCode = `def hello():\n    print("Hello, World!")`
 const shellCode = `#!/bin/bash\necho "Hello"`
@@ -34,20 +34,20 @@ const xssCode = `<script>alert('XSS')</script>`
 
 ---
 
-### 测试类：`file-type-utils.test.ts`
-**位置**：`web/src/features/skill/__tests__/file-type-utils.test.ts`
+### Test Class: `file-type-utils.test.ts`
+**Location**: `web/src/features/skill/__tests__/file-type-utils.test.ts`
 
-| 测试方法 | 覆盖用例 | 描述 |
+| Test Method | Covered Cases | Description |
 |---------|---------|------|
-| `getLanguageForHighlight returns correct language for .py` | AC-P-006 | 验证 .py → python |
-| `getLanguageForHighlight returns correct language for .sh` | AC-P-006 | 验证 .sh → bash |
-| `getLanguageForHighlight returns correct language for .json` | AC-P-006 | 验证 .json → json |
-| `getLanguageForHighlight returns correct language for .yaml` | AC-P-006 | 验证 .yaml → yaml |
-| `getLanguageForHighlight returns null for unknown extension` | AC-E-001 | 验证 .custom → null |
-| `getLanguageForHighlight handles case-insensitive extensions` | - | 验证 .PY → python |
-| `getLanguageForHighlight handles multiple extensions for same language` | - | 验证 .yml 和 .yaml 都映射到 yaml |
+| `getLanguageForHighlight returns correct language for .py` | AC-P-006 | Verify .py → python |
+| `getLanguageForHighlight returns correct language for .sh` | AC-P-006 | Verify .sh → bash |
+| `getLanguageForHighlight returns correct language for .json` | AC-P-006 | Verify .json → json |
+| `getLanguageForHighlight returns correct language for .yaml` | AC-P-006 | Verify .yaml → yaml |
+| `getLanguageForHighlight returns null for unknown extension` | AC-E-001 | Verify .custom → null |
+| `getLanguageForHighlight handles case-insensitive extensions` | - | Verify .PY → python |
+| `getLanguageForHighlight handles multiple extensions for same language` | - | Verify both .yml and .yaml map to yaml |
 
-**测试数据**：
+**Test Data**:
 ```typescript
 const testCases = [
   { ext: '.py', expected: 'python' },
@@ -62,24 +62,24 @@ const testCases = [
 
 ---
 
-## 2. 集成测试
+## 2. Integration Tests
 
-### 测试类：`file-preview-dialog.test.tsx`
-**位置**：`web/src/features/skill/__tests__/file-preview-dialog.test.tsx`
+### Test Class: `file-preview-dialog.test.tsx`
+**Location**: `web/src/features/skill/__tests__/file-preview-dialog.test.tsx`
 
-| 测试方法 | 覆盖用例 | 描述 |
+| Test Method | Covered Cases | Description |
 |---------|---------|------|
-| `renders CodeRenderer for Python files under 500KB` | AC-P-001, AC-B-001 | 验证小文件使用语法高亮 |
-| `renders plain text for files over 500KB` | AC-B-002 | 验证大文件降级到纯文本 |
-| `shows download-only for files over 1MB` | AC-B-004 | 验证超大文件只显示下载 |
-| `renders MarkdownRenderer for .md files` | AC-P-005 | 验证 Markdown 文件使用现有渲染器 |
-| `switches renderer when file changes` | AC-P-005 | 验证切换文件时渲染器正确切换 |
-| `shows loading state while fetching file` | - | 验证 loading 状态显示 |
-| `handles network error gracefully` | AC-E-004 | 验证网络错误显示提示 |
-| `copy button works correctly` | AC-P-009 | 验证复制功能 |
-| `download button works correctly` | AC-P-010 | 验证下载功能 |
+| `renders CodeRenderer for Python files under 500KB` | AC-P-001, AC-B-001 | Verify small files use syntax highlighting |
+| `renders plain text for files over 500KB` | AC-B-002 | Verify large files fall back to plain text |
+| `shows download-only for files over 1MB` | AC-B-004 | Verify very large files show download only |
+| `renders MarkdownRenderer for .md files` | AC-P-005 | Verify Markdown files use existing renderer |
+| `switches renderer when file changes` | AC-P-005 | Verify renderer switches correctly when switching files |
+| `shows loading state while fetching file` | - | Verify loading state is displayed |
+| `handles network error gracefully` | AC-E-004 | Verify network error shows a message |
+| `copy button works correctly` | AC-P-009 | Verify copy functionality |
+| `download button works correctly` | AC-P-010 | Verify download functionality |
 
-**测试数据**：
+**Test Data**:
 ```typescript
 const smallPythonFile = { path: 'main.py', size: 10240, content: '...' }
 const largePythonFile = { path: 'large.py', size: 512000, content: '...' }
@@ -89,29 +89,29 @@ const markdownFile = { path: 'README.md', size: 5000, content: '...' }
 
 ---
 
-### 测试类：`skill-detail-page.test.tsx`（扩展现有测试）
-**位置**：`web/src/features/skill/__tests__/skill-detail-page.test.tsx`
+### Test Class: `skill-detail-page.test.tsx` (Extend Existing Tests)
+**Location**: `web/src/features/skill/__tests__/skill-detail-page.test.tsx`
 
-| 测试方法 | 覆盖用例 | 描述 |
+| Test Method | Covered Cases | Description |
 |---------|---------|------|
-| `file tree shows syntax-highlighted preview on click` | AC-P-001 | 端到端测试：点击文件树 → 显示语法高亮 |
-| `file preview dialog closes correctly` | - | 验证关闭弹窗功能 |
+| `file tree shows syntax-highlighted preview on click` | AC-P-001 | End-to-end test: click file tree → display syntax highlighting |
+| `file preview dialog closes correctly` | - | Verify dialog close functionality |
 
 ---
 
-## 3. 性能测试
+## 3. Performance Tests
 
-### 测试场景：渲染性能
-**工具**：Jest + Performance API
+### Test Scenario: Render Performance
+**Tool**: Jest + Performance API
 
-| 测试场景 | 目标指标 | 测试方法 |
+| Test Scenario | Target Metric | Test Method |
 |---------|---------|---------|
-| 100KB Python 文件渲染时间 | < 200ms | 使用 `performance.now()` 测量 |
-| 500KB Python 文件渲染时间 | < 500ms | 使用 `performance.now()` 测量 |
-| 内存占用（500KB 文件） | < 50MB | 使用 Chrome DevTools Memory Profiler |
-| 首次加载时间（包括网络） | < 1s | 使用 Lighthouse Performance 测试 |
+| 100KB Python file render time | < 200ms | Measure using `performance.now()` |
+| 500KB Python file render time | < 500ms | Measure using `performance.now()` |
+| Memory usage (500KB file) | < 50MB | Use Chrome DevTools Memory Profiler |
+| First load time (including network) | < 1s | Use Lighthouse Performance testing |
 
-**测试代码示例**：
+**Test Code Example**:
 ```typescript
 test('renders 500KB file within 500ms', async () => {
   const largeCode = 'x'.repeat(500 * 1024)
@@ -125,45 +125,45 @@ test('renders 500KB file within 500ms', async () => {
 
 ---
 
-### 测试场景：包体积
-**工具**：Webpack Bundle Analyzer
+### Test Scenario: Bundle Size
+**Tool**: Webpack Bundle Analyzer
 
-| 指标 | 目标值 | 测试方法 |
+| Metric | Target Value | Test Method |
 |------|--------|---------|
-| 新增代码包体积（gzipped） | < 100KB | 运行 `npm run build` 后分析 bundle |
-| highlight.js 核心库 | ~10KB | 检查 bundle 中的 highlight.js 大小 |
-| 按需导入的语言包 | ~5KB/语言 | 检查每个语言包的大小 |
+| New code bundle size (gzipped) | < 100KB | Run `npm run build` then analyze bundle |
+| highlight.js core library | ~10KB | Check size of highlight.js in bundle |
+| Language packages (on demand) | ~5KB/language | Check size of each language package |
 
 ---
 
-## 4. 浏览器兼容性测试
+## 4. Browser Compatibility Tests
 
-### 测试矩阵
+### Test Matrix
 
-| 浏览器 | 版本 | 测试用例 | 状态 |
+| Browser | Version | Test Cases | Status |
 |--------|------|---------|------|
-| Chrome | 90+ | AC-P-001 ~ AC-P-010 | ✅ 通过 |
-| Firefox | 88+ | AC-P-001 ~ AC-P-010 | ✅ 通过 |
-| Safari | 14+ | AC-P-001 ~ AC-P-010 | ✅ 通过 |
-| Edge | 90+ | AC-P-001 ~ AC-P-010 | ✅ 通过 |
+| Chrome | 90+ | AC-P-001 ~ AC-P-010 | ✅ Pass |
+| Firefox | 88+ | AC-P-001 ~ AC-P-010 | ✅ Pass |
+| Safari | 14+ | AC-P-001 ~ AC-P-010 | ✅ Pass |
+| Edge | 90+ | AC-P-001 ~ AC-P-010 | ✅ Pass |
 
-**测试工具**：BrowserStack 或本地虚拟机
+**Testing tool**: BrowserStack or local virtual machines
 
 ---
 
-## 5. 主题测试
+## 5. Theme Tests
 
-### 测试场景：主题切换
-**工具**：Jest + React Testing Library
+### Test Scenario: Theme Switching
+**Tool**: Jest + React Testing Library
 
-| 测试场景 | 覆盖用例 | 测试方法 |
+| Test Scenario | Covered Cases | Test Method |
 |---------|---------|---------|
-| Light 模式下语法高亮颜色正确 | AC-P-007 | 检查 CSS 变量值 |
-| Dark 模式下语法高亮颜色正确 | AC-P-007 | 检查 CSS 变量值 |
-| Light → Dark 切换平滑 | AC-P-007 | 模拟主题切换，检查过渡效果 |
-| Dark → Light 切换平滑 | AC-P-008 | 模拟主题切换，检查过渡效果 |
+| Syntax highlighting colors correct in Light mode | AC-P-007 | Check CSS variable values |
+| Syntax highlighting colors correct in Dark mode | AC-P-007 | Check CSS variable values |
+| Light → Dark switch is smooth | AC-P-007 | Simulate theme switch, check transition effect |
+| Dark → Light switch is smooth | AC-P-008 | Simulate theme switch, check transition effect |
 
-**测试代码示例**：
+**Test Code Example**:
 ```typescript
 test('applies correct theme colors in dark mode', () => {
   render(<CodeRenderer code="def hello():" language="python" />, {
@@ -177,36 +177,36 @@ test('applies correct theme colors in dark mode', () => {
 
 ---
 
-## 6. 安全测试
+## 6. Security Tests
 
-### 测试场景：XSS 防护
-**工具**：Jest + DOMPurify（如果使用）
+### Test Scenario: XSS Protection
+**Tool**: Jest + DOMPurify (if used)
 
-| 测试场景 | 覆盖用例 | 测试方法 |
+| Test Scenario | Covered Cases | Test Method |
 |---------|---------|---------|
-| HTML 标签被转义 | AC-S-001 | 渲染包含 `<script>` 的代码，检查 DOM |
-| 事件处理器被转义 | AC-S-002 | 渲染包含 `onerror` 的代码，检查 DOM |
-| 不执行任何脚本 | AC-S-001, AC-S-002 | 使用 `jest.spyOn(window, 'alert')` 验证未调用 |
+| HTML tags are escaped | AC-S-001 | Render code containing `<script>`, check DOM |
+| Event handlers are escaped | AC-S-002 | Render code containing `onerror`, check DOM |
+| No scripts are executed | AC-S-001, AC-S-002 | Use `jest.spyOn(window, 'alert')` to verify not called |
 
-**测试代码示例**：
+**Test Code Example**:
 ```typescript
 test('escapes HTML tags to prevent XSS', () => {
   const xssCode = '<script>alert("XSS")</script>'
   const alertSpy = jest.spyOn(window, 'alert').mockImplementation()
   render(<CodeRenderer code={xssCode} language="javascript" />)
-  expect(screen.getByText(/<script>/)).toBeInTheDocument() // 显示为文本
-  expect(alertSpy).not.toHaveBeenCalled() // 未执行脚本
+  expect(screen.getByText(/<script>/)).toBeInTheDocument() // Displayed as text
+  expect(alertSpy).not.toHaveBeenCalled() // Script not executed
   alertSpy.mockRestore()
 })
 ```
 
 ---
 
-## 7. 覆盖率矩阵
+## 7. Coverage Matrix
 
-### 验收用例覆盖
+### Acceptance Case Coverage
 
-| 验收用例 | 单元测试 | 集成测试 | 性能测试 | 浏览器测试 |
+| Acceptance Case | Unit Test | Integration Test | Performance Test | Browser Test |
 |---------|---------|---------|---------|-----------|
 | AC-P-001 | ✅ | ✅ | ✅ | ✅ |
 | AC-P-002 | ✅ | - | - | ✅ |
@@ -234,101 +234,101 @@ test('escapes HTML tags to prevent XSS', () => {
 | AC-S-002 | ✅ | - | - | - |
 | AC-S-003 | - | - | - | - |
 
-**覆盖率统计**：
-- 单元测试覆盖：11/25 (44%)
-- 集成测试覆盖：13/25 (52%)
-- 性能测试覆盖：2/25 (8%)
-- 浏览器测试覆盖：10/25 (40%)
-- **总覆盖率**：25/25 (100%)
+**Coverage Statistics**:
+- Unit test coverage: 11/25 (44%)
+- Integration test coverage: 13/25 (52%)
+- Performance test coverage: 2/25 (8%)
+- Browser test coverage: 10/25 (40%)
+- **Total coverage**: 25/25 (100%)
 
 ---
 
-## 8. 测试数据
+## 8. Test Data
 
-### 测试文件准备
-**位置**：`web/src/features/skill/__tests__/__fixtures__/`
+### Test File Preparation
+**Location**: `web/src/features/skill/__tests__/__fixtures__/`
 
-| 文件名 | 大小 | 用途 |
+| File Name | Size | Purpose |
 |--------|------|------|
-| `sample.py` | 10KB | Python 语法高亮测试 |
-| `sample.sh` | 5KB | Shell 语法高亮测试 |
-| `sample.json` | 2KB | JSON 语法高亮测试 |
-| `sample.yaml` | 3KB | YAML 语法高亮测试 |
-| `large.py` | 500KB | 边界测试（刚好 500KB） |
-| `large-501kb.py` | 501KB | 边界测试（超过 500KB） |
-| `huge.py` | 1.1MB | 边界测试（超过 1MB） |
-| `unicode.py` | 5KB | Unicode 字符测试（包含中文注释） |
-| `xss.html` | 1KB | XSS 防护测试 |
+| `sample.py` | 10KB | Python syntax highlighting test |
+| `sample.sh` | 5KB | Shell syntax highlighting test |
+| `sample.json` | 2KB | JSON syntax highlighting test |
+| `sample.yaml` | 3KB | YAML syntax highlighting test |
+| `large.py` | 500KB | Boundary test (exactly 500KB) |
+| `large-501kb.py` | 501KB | Boundary test (exceeds 500KB) |
+| `huge.py` | 1.1MB | Boundary test (exceeds 1MB) |
+| `unicode.py` | 5KB | Unicode character test (includes Chinese comments) |
+| `xss.html` | 1KB | XSS protection test |
 
 ---
 
-## 9. 测试执行计划
+## 9. Test Execution Plan
 
-### 阶段 1：单元测试（0.5 天）
-- [ ] 编写 `CodeRenderer.test.tsx`（9 个测试用例）
-- [ ] 编写 `file-type-utils.test.ts`（7 个测试用例）
-- [ ] 运行测试，确保覆盖率 > 80%
-- [ ] 修复失败的测试
+### Phase 1: Unit Tests (0.5 days)
+- [ ] Write `CodeRenderer.test.tsx` (9 test cases)
+- [ ] Write `file-type-utils.test.ts` (7 test cases)
+- [ ] Run tests, ensure coverage > 80%
+- [ ] Fix failing tests
 
-### 阶段 2：集成测试（0.5 天）
-- [ ] 编写 `file-preview-dialog.test.tsx`（9 个测试用例）
-- [ ] 扩展 `skill-detail-page.test.tsx`（2 个测试用例）
-- [ ] 运行测试，确保端到端流程正常
-- [ ] 修复失败的测试
+### Phase 2: Integration Tests (0.5 days)
+- [ ] Write `file-preview-dialog.test.tsx` (9 test cases)
+- [ ] Extend `skill-detail-page.test.tsx` (2 test cases)
+- [ ] Run tests, ensure end-to-end flow is correct
+- [ ] Fix failing tests
 
-### 阶段 3：性能测试（0.3 天）
-- [ ] 编写渲染性能测试（4 个场景）
-- [ ] 运行 Webpack Bundle Analyzer，检查包体积
-- [ ] 使用 Lighthouse 测试首次加载时间
-- [ ] 优化性能瓶颈（如果需要）
+### Phase 3: Performance Tests (0.3 days)
+- [ ] Write render performance tests (4 scenarios)
+- [ ] Run Webpack Bundle Analyzer, check bundle size
+- [ ] Use Lighthouse to test first load time
+- [ ] Optimize performance bottlenecks (if needed)
 
-### 阶段 4：浏览器兼容性测试（0.2 天）
-- [ ] 在 Chrome 90+ 测试所有正向用例
-- [ ] 在 Firefox 88+ 测试所有正向用例
-- [ ] 在 Safari 14+ 测试所有正向用例
-- [ ] 在 Edge 90+ 测试所有正向用例
-- [ ] 记录兼容性问题（如果有）
+### Phase 4: Browser Compatibility Tests (0.2 days)
+- [ ] Test all positive cases in Chrome 90+
+- [ ] Test all positive cases in Firefox 88+
+- [ ] Test all positive cases in Safari 14+
+- [ ] Test all positive cases in Edge 90+
+- [ ] Record compatibility issues (if any)
 
-### 阶段 5：安全测试（0.2 天）
-- [ ] 编写 XSS 防护测试（3 个场景）
-- [ ] 验证路径遍历防护（复用现有测试）
-- [ ] 代码审查，确认无安全漏洞
-
----
-
-## 10. 测试通过标准
-
-### 单元测试
-- ✅ 所有测试用例通过
-- ✅ 代码覆盖率 > 80%（语句覆盖、分支覆盖）
-- ✅ 无 TypeScript 类型错误
-- ✅ 无 ESLint 警告
-
-### 集成测试
-- ✅ 所有端到端流程正常
-- ✅ 文件预览弹窗正确渲染
-- ✅ 复制和下载功能正常
-
-### 性能测试
-- ✅ 500KB 文件渲染时间 < 500ms（P95）
-- ✅ 首次加载时间 < 1s（P95）
-- ✅ 新增包体积 < 100KB（gzipped）
-- ✅ Lighthouse 性能评分不下降
-
-### 浏览器兼容性测试
-- ✅ Chrome 90+ 所有功能正常
-- ✅ Firefox 88+ 所有功能正常
-- ✅ Safari 14+ 所有功能正常
-- ✅ Edge 90+ 所有功能正常
-
-### 安全测试
-- ✅ XSS 防护测试通过
-- ✅ 代码审查通过
-- ✅ 无安全漏洞
+### Phase 5: Security Tests (0.2 days)
+- [ ] Write XSS protection tests (3 scenarios)
+- [ ] Verify path traversal protection (reuse existing tests)
+- [ ] Code review to confirm no security vulnerabilities
 
 ---
 
-## 变更日志
-| 日期 | 章节 | 变更 | 原因 | 触发者 |
+## 10. Test Pass Criteria
+
+### Unit Tests
+- ✅ All test cases pass
+- ✅ Code coverage > 80% (statement coverage, branch coverage)
+- ✅ No TypeScript type errors
+- ✅ No ESLint warnings
+
+### Integration Tests
+- ✅ All end-to-end flows work correctly
+- ✅ File preview dialog renders correctly
+- ✅ Copy and download functions work correctly
+
+### Performance Tests
+- ✅ 500KB file render time < 500ms (P95)
+- ✅ First load time < 1s (P95)
+- ✅ New bundle size increase < 100KB (gzipped)
+- ✅ Lighthouse performance score does not decrease
+
+### Browser Compatibility Tests
+- ✅ All features work correctly in Chrome 90+
+- ✅ All features work correctly in Firefox 88+
+- ✅ All features work correctly in Safari 14+
+- ✅ All features work correctly in Edge 90+
+
+### Security Tests
+- ✅ XSS protection tests pass
+- ✅ Code review passes
+- ✅ No security vulnerabilities
+
+---
+
+## Changelog
+| Date | Section | Change | Reason | Author |
 |------|------|------|------|--------|
-| 2026-03-22 | 初始版本 | 创建测试计划文档 | 需求澄清完成 | requirements-clarity |
+| 2026-03-22 | Initial version | Created test plan document | Requirements clarification complete | requirements-clarity |

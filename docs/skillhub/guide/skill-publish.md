@@ -1,77 +1,77 @@
-# Skill 发布与版本管理
+# Skill Publishing and Version Management
 
-## 功能描述
+## Feature Description
 
-Skill 发布是 SkillHub 的核心功能。开发者可以将本地开发的 Agent 技能包一键上传到注册中心，系统会自动处理版本管理、元数据提取、文件索引等工作。
+Skill publishing is the core feature of SkillHub. Developers can upload locally developed agent skill packages to the registry with a single command, and the system automatically handles versioning, metadata extraction, file indexing, and more.
 
-![概念图](/diagrams/skill-publish-concept.png)
+![Concept diagram](/diagrams/skill-publish-concept.png)
 
-**解决的问题**：
+**Problems this solves**:
 
-传统方式下，团队成员通过 Git 仓库或文件共享来分发技能包。这种方式存在几个痛点：
+Traditionally, team members distribute skill packages via Git repositories or file sharing. This approach has several pain points:
 
-- **版本混乱**：不同版本散落在各处，难以追踪
-- **权限失控**：无法精细控制谁能访问哪些技能包
-- **发现困难**：新成员不知道团队已有哪些可用技能
+- **Version chaos**: Different versions are scattered in various places and are difficult to track
+- **Loss of access control**: No fine-grained control over who can access which skill packages
+- **Difficulty in discovery**: New members don't know what skill packages are already available in the team
 
-SkillHub 提供了类似 npm 的发布体验，但增加了企业级的权限控制和审核机制。
+SkillHub provides an npm-like publishing experience, enhanced with enterprise-grade access control and review mechanisms.
 
-**核心特性**：
+**Core features**:
 
-- **语义化版本**：支持 `major.minor.patch` 版本号规范
-- **标签系统**：`latest`、`beta`、`stable` 等自定义标签
-- **多版本共存**：同一技能包可以保留多个历史版本
-- **版本解析**：智能解析版本选择器（如 `^1.2.0`、`~2.0.0`）
-- **文件浏览**：在线浏览技能包内的文件结构
-- **下载分发**：支持按版本、按标签下载
+- **Semantic versioning**: Supports `major.minor.patch` version numbering
+- **Tag system**: Custom tags like `latest`, `beta`, `stable`, etc.
+- **Multi-version coexistence**: A skill package can retain multiple historical versions
+- **Version resolution**: Intelligent resolution of version selectors (e.g. `^1.2.0`, `~2.0.0`)
+- **File browser**: Browse the file structure inside a skill package online
+- **Download distribution**: Supports downloading by version or by tag
 
-## 使用场景
+## Use Cases
 
-**场景一：开发者发布新技能**
+**Scenario 1: Developer publishes a new skill**
 
-你刚完成了一个 Claude Code 技能包，想让团队其他成员也能使用。
+You just completed a Claude Code skill package and want other team members to be able to use it.
 
-![操作截图](/screenshots/homepage.png)
+![Screenshot](/screenshots/homepage.png)
 
-**场景二：版本迭代**
+**Scenario 2: Version iteration**
 
-技能包需要修复 bug 或添加新功能，发布新版本并保持向后兼容。
+A skill package needs bug fixes or new features; publish a new version while maintaining backward compatibility.
 
-**场景三：Beta 测试**
+**Scenario 3: Beta testing**
 
-新功能还不稳定，先发布 `beta` 标签让少数人测试，稳定后再推广到 `latest`。
+A new feature is not yet stable; publish it with the `beta` tag for a small group of testers, then promote it to `latest` once stable.
 
-**场景四：版本回滚**
+**Scenario 4: Version rollback**
 
-发现新版本有严重问题，需要将 `latest` 标签指向上一个稳定版本。
+A new version has a critical issue; the `latest` tag needs to point back to the previous stable version.
 
-## 使用步骤
+## Usage Steps
 
-1. **准备技能包**
+1. **Prepare the skill package**
 
-确保技能包符合 SkillHub 规范：
-- 包含 `skill.md`（技能描述）
-- 包含 `package.json` 或 `SKILL.md`（元数据）
-- 文件结构清晰，无敏感信息
+   Ensure the skill package meets SkillHub standards:
+   - Contains `skill.md` (skill description)
+   - Contains `package.json` or `SKILL.md` (metadata)
+   - Clear file structure with no sensitive information
 
-2. **使用 CLI 发布（推荐）**
+2. **Publish via CLI (recommended)**
 
 ```bash
-# 配置注册中心
+# Configure the registry
 export CLAWHUB_REGISTRY=http://localhost:8080
 
-# 发布到默认命名空间
+# Publish to the default namespace
 npx clawhub publish ./my-skill
 
-# 发布到指定命名空间
+# Publish to a specific namespace
 npx clawhub publish ./my-skill --namespace my-team
 ```
 
-3. **使用 Web UI 发布**
+3. **Publish via Web UI**
 
-访问 `http://localhost:3000/dashboard/publish`，选择命名空间、上传 zip 文件、选择可见性后点击「发布」。
+   Go to `http://localhost:3000/dashboard/publish`, select a namespace, upload a zip file, choose a visibility level, and click "Publish".
 
-4. **使用 REST API 发布**
+4. **Publish via REST API**
 
 ```bash
 POST /api/v1/skills/{namespace}/publish
@@ -81,76 +81,76 @@ file: skill-package.zip
 visibility: PUBLIC
 ```
 
-![流程图](/diagrams/skill-publish-flow.png)
+![Flow diagram](/diagrams/skill-publish-flow.png)
 
-5. **安全扫描**
+5. **Security scan**
 
-发布后，[Skill Scanner](/guide/scanner) 会自动扫描技能包，检测潜在的安全风险。扫描结果会显示在技能包详情页。
+   After publishing, [Skill Scanner](/guide/scanner) automatically scans the skill package to detect potential security risks. Scan results are displayed on the skill package detail page.
 
-6. **等待审核**（如果命名空间开启了审核）
+6. **Wait for review** (if the namespace has review enabled)
 
-团队管理员会收到审核通知，审核通过后技能包正式发布。
+   Team admins will receive a review notification. The skill package is officially published once approved.
 
-7. **发布成功**
+7. **Publication successful**
 
-技能包可以通过搜索发现，其他人可以通过 CLI 或 Web UI 下载使用。
+   The skill package is discoverable via search, and others can download and use it via the CLI or Web UI.
 
-## API 接口
+## API Reference
 
-**发布技能包**：
+**Publish a skill package**:
 ```bash
 POST /api/v1/skills/{namespace}/publish
 Content-Type: multipart/form-data
 
-# 参数
-file: MultipartFile (必需)
-visibility: PUBLIC | PRIVATE | INTERNAL (可选，默认 PUBLIC)
+# Parameters
+file: MultipartFile (required)
+visibility: PUBLIC | PRIVATE | INTERNAL (optional, defaults to PUBLIC)
 ```
 
-**参数说明**：
-| 参数 | 类型 | 说明 |
+**Parameter description**:
+| Parameter | Type | Description |
 |------|------|------|
-| namespace | string | 命名空间 slug（路径参数） |
-| file | MultipartFile | 技能包 zip 文件 |
-| visibility | enum | 可见性级别：PUBLIC（公开）、PRIVATE（私有）、INTERNAL（内部） |
+| namespace | string | Namespace slug (path parameter) |
+| file | MultipartFile | Skill package zip file |
+| visibility | enum | Visibility level: PUBLIC, PRIVATE, INTERNAL |
 
-**获取 Skill 详情**：
+**Get skill detail**:
 ```bash
 GET /api/v1/skills/{namespace}/{slug}
 ```
 
-**列出版本**：
+**List versions**:
 ```bash
 GET /api/v1/skills/{namespace}/{slug}/versions?page=0&size=20
 ```
 
-**获取版本详情**：
+**Get version detail**:
 ```bash
 GET /api/v1/skills/{namespace}/{slug}/versions/{version}
 ```
 
-**下载特定版本**：
+**Download a specific version**:
 ```bash
 GET /api/v1/skills/{namespace}/{slug}/versions/{version}/download
 ```
 
-**按标签下载**：
+**Download by tag**:
 ```bash
 GET /api/v1/skills/{namespace}/{slug}/tags/{tagName}/download
 ```
 
-**版本解析**：
+**Version resolution**:
 ```bash
 GET /api/v1/skills/{namespace}/{slug}/resolve?version=^1.2.0
 ```
 
-## 注意事项
+## Notes
 
-> **版本号规范**：SkillHub 使用语义化版本（Semantic Versioning）。版本号格式为 `major.minor.patch`，例如 `1.2.3`。
+> **Version numbering**: SkillHub uses Semantic Versioning. The version format is `major.minor.patch`, e.g. `1.2.3`.
 
-- **首次发布**：版本号建议从 `0.1.0` 或 `1.0.0` 开始
-- **标签管理**：`latest` 标签会自动指向最新的稳定版本
-- **审核流程**：如果命名空间开启了审核，新版本需要等待管理员批准
-- **文件大小限制**：单个技能包不超过 100MB（可配置）
-- **命名规范**：Skill slug 支持小写字母、数字、连字符和 Unicode 字符
-- **版本不可变**：已发布的版本不能修改，只能发布新版本
+- **First publish**: It is recommended to start version numbering at `0.1.0` or `1.0.0`
+- **Tag management**: The `latest` tag automatically points to the most recent stable version
+- **Review process**: If the namespace has review enabled, new versions must wait for admin approval
+- **File size limit**: A single skill package must not exceed 100MB (configurable)
+- **Naming convention**: Skill slugs support lowercase letters, digits, hyphens, and Unicode characters
+- **Versions are immutable**: Published versions cannot be modified; only new versions can be published

@@ -1,47 +1,47 @@
-# SkillHub SMTP 邮箱配置指南（验证码邮件）
+# SkillHub SMTP Configuration Guide (Verification Code Emails)
 
-本文说明如何为 SkillHub 配置 SMTP，用于发送“密码重置验证码”邮件。
+This document explains how to configure SMTP for SkillHub to send "password reset verification code" emails.
 
-适用场景：
-- 生产/预发布环境（`compose.release.yml` + `.env.release`）
-- 本地联调环境（直接注入后端环境变量）
+Applicable scenarios:
+- Production/staging environments (`compose.release.yml` + `.env.release`)
+- Local development environments (inject backend environment variables directly)
 
-补充说明：
-- SMTP 本质是邮件传输协议，不是单一厂商产品。
-- 你可以使用企业邮箱、云邮箱或本地测试 SMTP 服务（例如 MailHog）作为 SMTP 服务端。
+Additional notes:
+- SMTP is fundamentally an email transport protocol, not a single vendor's product.
+- You can use a corporate mailbox, a cloud mailbox, or a local test SMTP service (such as MailHog) as the SMTP server.
 
-当前密码重置页面入口说明：
-- 当前前端统一使用 `/reset-password` 页面。
-- 该页面同时包含“发送验证码”和“提交新密码”两步，不再单独使用 `/forgot-password`。
+Current password reset page entry note:
+- The frontend currently uses the `/reset-password` page uniformly.
+- This page includes both the "send verification code" step and the "submit new password" step; `/forgot-password` is no longer used separately.
 
-## 1. 需要配置的环境变量
+## 1. Environment Variables to Configure
 
-以下变量已被后端读取：
+The following variables are read by the backend:
 
-| 变量名 | 说明 | 示例 |
+| Variable | Description | Example |
 |---|---|---|
-| `SPRING_MAIL_HOST` | SMTP 服务器地址 | `smtp.example.com` |
-| `SPRING_MAIL_PORT` | SMTP 端口 | `465` |
-| `SPRING_MAIL_USERNAME` | SMTP 用户名 | `noreply@example.com` |
-| `SPRING_MAIL_PASSWORD` | SMTP 密码/授权码 | `xxxxxx` |
-| `SPRING_MAIL_SMTP_AUTH` | 是否启用 SMTP AUTH | `true` |
-| `SPRING_MAIL_SMTP_STARTTLS_ENABLE` | 是否启用 STARTTLS | `false` |
-| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE` | 是否启用 SMTP SSL 直连 | `true` |
-| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST` | SSL 信任主机（用于规避部分环境下证书链校验失败） | `smtp.mail.example` |
-| `SKILLHUB_AUTH_PASSWORD_RESET_CODE_EXPIRY` | 验证码有效期（ISO-8601 Duration） | `PT10M` |
-| `SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS` | 发件人邮箱 | `noreply@example.com` |
-| `SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME` | 发件人名称 | `SkillHub` |
+| `SPRING_MAIL_HOST` | SMTP server address | `smtp.example.com` |
+| `SPRING_MAIL_PORT` | SMTP port | `465` |
+| `SPRING_MAIL_USERNAME` | SMTP username | `noreply@example.com` |
+| `SPRING_MAIL_PASSWORD` | SMTP password / authorization code | `xxxxxx` |
+| `SPRING_MAIL_SMTP_AUTH` | Whether to enable SMTP AUTH | `true` |
+| `SPRING_MAIL_SMTP_STARTTLS_ENABLE` | Whether to enable STARTTLS | `false` |
+| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE` | Whether to enable SMTP SSL direct connection | `true` |
+| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST` | SSL trusted host (used to bypass certificate chain validation failures in some environments) | `smtp.mail.example` |
+| `SKILLHUB_AUTH_PASSWORD_RESET_CODE_EXPIRY` | Verification code validity period (ISO-8601 Duration) | `PT10M` |
+| `SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS` | Sender email address | `noreply@example.com` |
+| `SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME` | Sender display name | `SkillHub` |
 
-说明：
-- 当前文档统一按 `465 + SSL` 配置，不再展开 `587 + STARTTLS` 方案。
-- 使用 `465` 时配置：`STARTTLS=false`、`SSL_ENABLE=true`。
-- 若出现 `PKIX path building failed` / `SSLHandshakeException`，可尝试增加 `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST=<SMTP_HOST>`（本地联调常用）。
-- 生产环境默认不建议配置 `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST`，仅在证书链异常时临时启用。
-- `SKILLHUB_AUTH_PASSWORD_RESET_CODE_EXPIRY` 支持如 `PT5M`、`PT10M`、`PT30M`。
+Notes:
+- This document uses the `465 + SSL` configuration uniformly; the `587 + STARTTLS` approach is not covered here.
+- When using port `465`, configure: `STARTTLS=false`, `SSL_ENABLE=true`.
+- If you encounter `PKIX path building failed` / `SSLHandshakeException`, try adding `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST=<SMTP_HOST>` (commonly used in local development).
+- In production environments, `SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST` is not recommended by default; enable it temporarily only when certificate chain issues occur.
+- `SKILLHUB_AUTH_PASSWORD_RESET_CODE_EXPIRY` supports values such as `PT5M`, `PT10M`, `PT30M`.
 
-## 1.1 配置方案速查（推荐）
+## 1.1 Quick Configuration Reference (Recommended)
 
-### A. 通用 SMTP 邮箱（本地直连真实邮箱）
+### A. Generic SMTP Mailbox (Local direct connection to a real mailbox)
 
 ```dotenv
 SPRING_MAIL_HOST=smtp.mail.example
@@ -57,7 +57,7 @@ SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS=mailer@example.com
 SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME=your-from-name
 ```
 
-本地 `export` 示例写法：
+Local `export` example:
 
 ```bash
 export SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST=smtp.mail.example
@@ -73,7 +73,7 @@ export SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS=mailer@example.com
 export SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME=your-from-name
 ```
 
-### B. MailHog（本地联调推荐）
+### B. MailHog (Recommended for local development)
 
 ```dotenv
 SPRING_MAIL_HOST=127.0.0.1
@@ -87,7 +87,7 @@ SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS=noreply@skillhub.local
 SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME=SkillHub
 ```
 
-### C. 线上部署（465 端口示例）
+### C. Production Deployment (Port 465 example)
 
 ```dotenv
 SPRING_MAIL_HOST=smtp.mail.example
@@ -103,15 +103,15 @@ SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS=mailer@example.com
 SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME=your-from-name
 ```
 
-## 2. 单机交付（Compose）配置步骤
+## 2. Single-Machine Delivery (Compose) Configuration Steps
 
-1. 复制环境模板（若尚未创建）：
+1. Copy the environment template (if not yet created):
 
 ```bash
 cp .env.release.example .env.release
 ```
 
-2. 编辑 `.env.release`，填写 SMTP 变量：
+2. Edit `.env.release` and fill in the SMTP variables:
 
 ```dotenv
 SPRING_MAIL_HOST=smtp.mail.example
@@ -128,23 +128,23 @@ SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS=mailer@example.com
 SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME=your-from-name
 ```
 
-3. 重启后端容器使配置生效：
+3. Restart the backend container to apply the configuration:
 
 ```bash
 docker compose --env-file .env.release -f compose.release.yml up -d server
 ```
 
-4. 查看后端日志确认启动正常：
+4. Check backend logs to confirm successful startup:
 
 ```bash
 docker compose --env-file .env.release -f compose.release.yml logs -f server
 ```
 
-## 3. 本地开发配置与验证
+## 3. Local Development Configuration and Verification
 
-### 3.1 一次性临时生效（推荐）
+### 3.1 One-Time Temporary Effect (Recommended)
 
-适合当前终端临时测试，重开终端后失效。
+Suitable for temporary testing in the current terminal session; expires when the terminal is closed.
 
 ```bash
 SPRING_MAIL_HOST=smtp.mail.example \
@@ -161,23 +161,23 @@ SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME=your-from-name \
 make dev-server
 ```
 
-### 3.2 长期生效（shell 配置）
+### 3.2 Persistent Effect (Shell Configuration)
 
-如果你写到了 `~/.zshrc`，请注意：
-- 必须 `source ~/.zshrc` 或重开终端后变量才会生效
-- 需要在“同一个终端”启动 `make dev-server`
+If you write variables to `~/.zshrc`, note:
+- You must run `source ~/.zshrc` or open a new terminal before the variables take effect
+- You need to start `make dev-server` in the same terminal where the variables were configured
 
-可先确认变量是否在当前 shell 中：
+You can first confirm whether the variables are in the current shell:
 
 ```bash
 env | rg '^(SPRING_MAIL_|SKILLHUB_AUTH_PASSWORD_RESET_)'
 ```
 
-### 3.3 推荐联调方式（MailHog）
+### 3.3 Recommended Local Testing Method (MailHog)
 
-如果你只是本地验证验证码链路，建议用 MailHog 作为本地 SMTP 服务：
+If you only need to verify the verification code flow locally, it is recommended to use MailHog as a local SMTP service:
 
-1. 启动 MailHog：
+1. Start MailHog:
 
 ```bash
 docker run -d --name skillhub-mailhog \
@@ -186,13 +186,13 @@ docker run -d --name skillhub-mailhog \
   mailhog/mailhog
 ```
 
-2. 启动依赖服务（Postgres/Redis）：
+2. Start dependency services (Postgres/Redis):
 
 ```bash
 make dev
 ```
 
-3. 启动后端时注入 SMTP 环境变量（示例）：
+3. Start the backend with SMTP environment variables injected (example):
 
 ```bash
 SPRING_MAIL_HOST=127.0.0.1 \
@@ -207,19 +207,19 @@ SKILLHUB_AUTH_PASSWORD_RESET_FROM_NAME=SkillHub \
 make dev-server
 ```
 
-4. 打开 MailHog Web UI 查看邮件：
+4. Open the MailHog Web UI to view emails:
 
 ```text
 http://localhost:8025
 ```
 
-5. 在 SkillHub 页面验证流程：
-- 打开 `/reset-password`
-- 输入邮箱并点击“发送验证码”
-- 在 MailHog 中查看验证码邮件
-- 输入邮箱 + 验证码 + 新密码完成重置
+5. Verify the flow in the SkillHub page:
+- Open `/reset-password`
+- Enter your email and click "Send Verification Code"
+- Check the verification code email in MailHog
+- Enter the email + verification code + new password to complete the reset
 
-6. 也可使用接口做快速验证（示例）：
+6. You can also use the API for quick verification (example):
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/local/password-reset/request \
@@ -227,91 +227,90 @@ curl -X POST http://localhost:8080/api/v1/auth/local/password-reset/request \
   -d '{"email":"your-email@example.com"}'
 ```
 
-## 4. 功能验证（验证码邮件）
+## 4. Feature Verification (Verification Code Emails)
 
-### 4.1 用户自助找回
+### 4.1 Self-Service User Recovery
 
-在 `/reset-password` 页面点击“发送验证码”后，系统会尝试发送验证码邮件。
+After the user clicks "Send Verification Code" on the `/reset-password` page, the system will attempt to send a verification code email.
 
-说明：
-- 为防止账号枚举，自助接口总是返回通用成功提示。
-- 即使邮件发送失败，接口也可能返回成功；请结合后端日志确认实际发送结果。
+Notes:
+- To prevent account enumeration, the self-service endpoint always returns a generic success message.
+- Even if the email fails to send, the endpoint may return success; please check the backend logs to confirm the actual sending result.
 
-### 4.2 管理员触发重置
+### 4.2 Administrator-Triggered Reset
 
-管理员在用户管理页触发“重置密码”时，系统会强制发送验证码；
-若 SMTP 发送失败，会返回错误（便于运维排障）。
+When an administrator triggers "Reset Password" on the user management page, the system will force-send the verification code; if the SMTP send fails, an error will be returned (to help with operational troubleshooting).
 
-## 5. 常见问题排查
+## 5. Common Troubleshooting
 
-### 5.1 认证失败（`535 Authentication failed`）
+### 5.1 Authentication Failure (`535 Authentication failed`)
 
-排查方向：
-- 用户名/密码是否正确
-- 邮箱服务是否要求“客户端授权码”而非登录密码
-- 发件账号是否已开启 SMTP 服务
+Troubleshooting directions:
+- Is the username/password correct?
+- Does the mail service require a "client authorization code" rather than the login password?
+- Has SMTP service been enabled for the sending account?
 
-### 5.2 连接超时或拒绝连接
+### 5.2 Connection Timeout or Refused Connection
 
-排查方向：
-- 主机到 SMTP 服务端口 `465` 是否可达
-- 安全组/防火墙是否放行出站连接
-- SMTP 服务地址是否填写正确
+Troubleshooting directions:
+- Is port `465` of the SMTP server reachable from the host?
+- Has the security group/firewall allowed outbound connections?
+- Is the SMTP server address correct?
 
-### 5.3 本地明明配置了变量但不生效
+### 5.3 Variables Are Configured Locally But Do Not Take Effect
 
-排查方向：
-- 是否只是编辑了 `~/.zshrc` 但没有 `source ~/.zshrc`
-- 启动后端的终端是否与配置变量的终端是同一个
-- `8080` 是否被旧进程占用，导致新进程没启动成功
+Troubleshooting directions:
+- Did you only edit `~/.zshrc` without running `source ~/.zshrc`?
+- Is the terminal that started the backend the same terminal where the variables were configured?
+- Is port `8080` occupied by an old process, causing the new process not to start?
 
-可执行以下命令快速检查：
+Run the following commands for a quick check:
 
 ```bash
-# 查看 8080 是否被旧进程占用
+# Check if port 8080 is occupied by an old process
 lsof -nP -iTCP:8080 -sTCP:LISTEN
 
-# 查看当前 shell 是否有 SMTP 环境变量
+# Check whether the current shell has SMTP environment variables
 env | rg '^(SPRING_MAIL_|SKILLHUB_AUTH_PASSWORD_RESET_)'
 ```
 
-### 5.4 发件人被拒绝
+### 5.4 Sender Rejected
 
-排查方向：
-- `SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS` 是否与 SMTP 账号一致或已验证
-- 邮箱服务是否限制别名发件
+Troubleshooting directions:
+- Is `SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS` consistent with the SMTP account or already verified?
+- Does the mail service restrict alias sending?
 
-### 5.5 健康检查是否校验 SMTP
+### 5.5 Does the Health Check Validate SMTP?
 
-默认配置下，邮件健康检查关闭，不会因为 SMTP 不可达导致 `health` 失败。
+Under the default configuration, the mail health check is disabled and will not cause a `health` failure due to SMTP being unreachable.
 
-若需要将 SMTP 连通性纳入健康检查，可设置：
+To include SMTP connectivity in the health check, set:
 
 ```dotenv
 MANAGEMENT_HEALTH_MAIL_ENABLED=true
 ```
 
-### 5.6 SMTP 报 `PKIX path building failed`（证书链校验失败）
+### 5.6 SMTP Reports `PKIX path building failed` (Certificate Chain Validation Failure)
 
-典型日志：
+Typical log messages:
 - `SSLHandshakeException`
 - `unable to find valid certification path to requested target`
 
-处理建议（本地联调）：
-- 增加：
+Recommended handling (local development):
+- Add:
 
 ```dotenv
 SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST=smtp.mail.example
 ```
 
-- 然后重启后端，再触发一次“发送验证码”。
+- Then restart the backend and trigger "Send Verification Code" again.
 
-补充：
-- 该配置用于指定信任主机，适合本地排障与联调。
-- 生产环境默认不建议长期启用该配置，更推荐使用规范 CA 证书链或将企业 CA 导入 Java truststore。
+Additional notes:
+- This configuration specifies a trusted host and is suitable for local troubleshooting and development.
+- In production environments, it is not recommended to keep this configuration enabled long-term. It is preferable to use a proper CA certificate chain or import the enterprise CA into the Java truststore.
 
-## 6. 安全建议
+## 6. Security Recommendations
 
-- 不要把 SMTP 密码提交到仓库；仅写入受控的 `.env.release` 或密钥管理系统。
-- 使用专用发信账号，避免使用个人邮箱主密码。
-- 生产环境建议定期轮换 SMTP 授权码。
+- Do not commit SMTP passwords to the repository; write them only to a controlled `.env.release` or a secrets management system.
+- Use a dedicated sending account; avoid using a personal mailbox master password.
+- In production environments, it is recommended to rotate the SMTP authorization code regularly.

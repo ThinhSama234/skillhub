@@ -1,276 +1,276 @@
-# OpenClaw 集成指南
+# OpenClaw Integration Guide
 
-本文档说明如何配置 OpenClaw CLI 连接到 SkillHub 私有注册中心，实现技能的发布、搜索和下载。
-> 不仅适用于 Openclaw，通过指定安装目录，可适用于其他的 CLI Coding Agent (Claude Code、OpenCode、Qcoder等) 或者 Agent 助手（Nanobot、CoPaw等）。
+This document explains how to configure the OpenClaw CLI to connect to a SkillHub private registry for publishing, searching, and downloading skills.
+> Not limited to OpenClaw — by specifying the installation directory, this also applies to other CLI Coding Agents (Claude Code, OpenCode, Qcoder, etc.) or Agent assistants (Nanobot, CoPaw, etc.).
 
-## 概述
+## Overview
 
-SkillHub 提供了与 ClawHub 兼容的 API 层，使得 OpenClaw CLI 可以无缝对接私有注册中心。通过简单的配置，您可以：
+SkillHub provides a ClawHub-compatible API layer that allows the OpenClaw CLI to seamlessly connect to a private registry. With a simple configuration, you can:
 
-- 🔍 搜索组织内的私有技能
-- 📥 下载和安装技能包
-- 📤 发布新技能到私有注册中心
-- ⭐ 收藏和评分技能
+- Search for private skills within your organization
+- Download and install skill packages
+- Publish new skills to the private registry
+- Star and rate skills
 
-## 快速开始
+## Quick Start
 
-### 1. 配置 Registry 地址
+### 1. Configure the Registry Address
 
-在 OpenClaw 配置文件中设置 SkillHub 注册中心地址：
+Set the SkillHub registry address in the OpenClaw configuration file:
 
 ```bash
-# 通过环境变量配置（临时）
+# Configure via environment variable (temporary)
 export CLAWHUB_REGISTRY=https://skillhub.your-company.com
 ```
 
-### 2. 登录认证（可选）
+### 2. Authentication (Optional)
 
-对于**全局命名空间（@global）的公开技能（PUBLIC）**，无需登录即可下载。对于以下情况需要认证：
+For **public skills (PUBLIC) in the global namespace (@global)**, no login is required to download. Authentication is required for:
 
-- 团队命名空间的技能（无论可见性）
-- NAMESPACE_ONLY 或 PRIVATE 技能
-- 发布、收藏等写操作
+- Skills in team namespaces (regardless of visibility)
+- NAMESPACE_ONLY or PRIVATE skills
+- Write operations such as publishing or starring
 
 ```bash
-# 使用 API Token 登录
+# Log in with an API Token
 npx clawhub login --token YOUR_API_TOKEN
-# 如果使用 npm i -g clawhub 安装过 clawhub，文档中所有的 npx clawhub 命令都可以直接使用 clawhub 命令来执行
+# If clawhub is installed via npm i -g clawhub, all npx clawhub commands in this document can be run directly as clawhub commands
 
-# 查看当前登录用户
+# View the currently logged-in user
 npx clawhub whoami
 
-# 退出当前用户登录
+# Log out the current user
 npx clawhub logout
 
-# 查看帮助
+# View help
 npx clawhub --help
 ```
 
-#### 获取 API Token
+#### Obtaining an API Token
 
-1. 登录 SkillHub Web UI
-2. 进入 **个人设置 → API Tokens**
-3. 点击 **创建新 Token**
-4. 设置 Token 名称和权限范围
-5. 复制生成的 Token
+1. Log in to the SkillHub Web UI
+2. Go to **Personal Settings → API Tokens**
+3. Click **Create New Token**
+4. Set the token name and permission scope
+5. Copy the generated token
 
-### 3. 搜索/浏览/查看技能
+### 3. Search / Browse / View Skills
 
 ```bash
-# 搜索，显示所有相关技能
+# Search, display all matching skills
 npx clawhub search <skill-name>
-# 搜索，结果显示前 5 个结果
+# Search, display the top 5 results
 npx clawhub search <skill-name> --limit 5  
-# 显示 skill 详情
+# Display skill details
 npx clawhub inspect <skill-name>
-# 浏览最新技能
+# Browse the latest skills
 npx clawhub explore
-npx clawhub explore --limit 20    # 前20个
+npx clawhub explore --limit 20    # top 20
 
-# 示例
+# Examples
 npx clawhub search find-skills
 npx clawhub search find-skills --limit 5 
 npx clawhub inspect find-skills
 
-# 使用帮助
+# Help
 npx clawhub search --help
 npx clawhub inspect --help
 ```
 
-### 4. 安装/更新/卸载技能
+### 4. Install / Update / Uninstall Skills
 
 ```bash
-# 安装
+# Install
 npx clawhub install <skill-name>
-npx clawhub install <skill-name> --version <version number>   # 指定版本
-npx clawhub install <skill-name> --force                      # 覆盖已有
-npx clawhub --dir <install-path> install <skill-name>         # 指定目录
+npx clawhub install <skill-name> --version <version number>   # specify version
+npx clawhub install <skill-name> --force                      # overwrite existing
+npx clawhub --dir <install-path> install <skill-name>         # specify directory
 
-# 更新
+# Update
 npx clawhub update <skill-name>
 npx clawhub update --all
 
-# 卸载
+# Uninstall
 npx clawhub uninstall <skill-name>
 
-# 查看已安装 skills
+# View installed skills
 npx clawhub list
 
-# Claude Code 安装 Skill 示例
+# Claude Code skill installation examples
 npx clawhub --dir ~/.claude/skills install find-skills
 CLAWHUB_WORKDIR=~/.claude/skills npx clawhub install find-skills
 
-# 使用帮助
+# Help
 npx clawhub install --help
 npx clawhub update --help
 npx clawhub uninstall --help
 npx clawhub list --help
 ```
 
-### 5. 发布技能
+### 5. Publish Skills
 
 ```bash
-# 发布到 global 空间（需要相应权限）
+# Publish to the global namespace (requires appropriate permissions)
 npx clawhub publish ./my-skill --slug my-skill --name "My Skill" --version 1.0.0
 
-# 发布到如 my-space 这样的团队空间
+# Publish to a team namespace such as my-space
 npx clawhub publish ./my-skill --slug my-space--my-skill --name "My Skill" --version 1.0.0
-npx clawhub sync --all # 上传当前文件夹中所有的 skill
+npx clawhub sync --all # upload all skills in the current directory
 
-# 使用帮助
+# Help
 npx clawhub publish --help
 npx clawhub sync --help
 ```
 
-说明：
-- `my-space--my-skill` 是兼容层 canonical slug，SkillHub 会将其解析为 namespace `my-space` 和 skill slug `my-skill`
-- 为避免 CLI 展示与服务端最终坐标不一致，建议让 `SKILL.md` 中的 `name` 与 canonical slug 后半段保持一致
+Notes:
+- `my-space--my-skill` is the compatibility layer canonical slug; SkillHub will parse it into namespace `my-space` and skill slug `my-skill`
+- To avoid inconsistencies between CLI display and the server's final coordinates, it is recommended to keep the `name` in `SKILL.md` consistent with the second part of the canonical slug
 
-## API 端点说明
+## API Endpoint Reference
 
-SkillHub 兼容层提供以下端点：
+SkillHub's compatibility layer provides the following endpoints:
 
-| 端点 | 方法 | 说明 | 认证要求 |
+| Endpoint | Method | Description | Auth Required |
 |------|------|------|----------|
-| `/api/v1/whoami` | GET | 获取当前用户信息 | 必需 |
-| `/api/v1/search` | GET | 搜索技能 | 可选 |
-| `/api/v1/resolve` | GET | 解析技能版本 | 可选 |
-| `/api/v1/download/{slug}` | GET | 下载技能（重定向） | 可选* |
-| `/api/v1/download` | GET | 下载技能（查询参数） | 可选* |
-| `/api/v1/skills/{slug}` | GET | 获取技能详情 | 可选 |
-| `/api/v1/skills/{slug}/star` | POST | 收藏技能 | 必需 |
-| `/api/v1/skills/{slug}/unstar` | DELETE | 取消收藏 | 必需 |
-| `/api/v1/publish` | POST | 发布技能 | 必需 |
+| `/api/v1/whoami` | GET | Get current user info | Required |
+| `/api/v1/search` | GET | Search skills | Optional |
+| `/api/v1/resolve` | GET | Resolve skill version | Optional |
+| `/api/v1/download/{slug}` | GET | Download skill (redirect) | Optional* |
+| `/api/v1/download` | GET | Download skill (query params) | Optional* |
+| `/api/v1/skills/{slug}` | GET | Get skill details | Optional |
+| `/api/v1/skills/{slug}/star` | POST | Star a skill | Required |
+| `/api/v1/skills/{slug}/unstar` | DELETE | Unstar a skill | Required |
+| `/api/v1/publish` | POST | Publish a skill | Required |
 
-说明：
-- 兼容层对外继续使用 “latest” 语义，但这里严格指向“最新已发布版本”
-- 兼容层内部实现应从统一 lifecycle projection 的 `publishedVersion` 映射，而不是自行推导“当前版本”
+Notes:
+- The compatibility layer continues to use "latest" semantics externally, but this strictly refers to "the latest published version"
+- The compatibility layer's internal implementation should map from the `publishedVersion` of a unified lifecycle projection, not infer "current version" independently
 
-\* 下载端点认证要求：
-- **全局命名空间（@global）的 PUBLIC 技能**：无需认证
-- **团队命名空间的所有技能**：需要认证
-- **NAMESPACE_ONLY 和 PRIVATE 技能**：需要认证
+\* Download endpoint auth requirements:
+- **PUBLIC skills in the global namespace (@global)**: No auth required
+- **All skills in team namespaces**: Auth required
+- **NAMESPACE_ONLY and PRIVATE skills**: Auth required
 
-## 技能可见性说明
+## Skill Visibility Explained
 
-SkillHub 支持三种技能可见性级别，下载权限规则如下：
+SkillHub supports three skill visibility levels, with the following download permission rules:
 
-### PUBLIC（公开）
-- ✅ 任何人都可以搜索和查看
-- ✅ **全局命名空间（@global）**：无需登录即可下载
-- 🔒 **团队命名空间**：需要登录认证才能下载
-- 📍 适用于组织内通用的、可公开分享的技能
+### PUBLIC
+- Any person can search and view
+- **Global namespace (@global)**: Can be downloaded without login
+- **Team namespaces**: Login authentication required to download
+- Suitable for universally usable, publicly shareable skills within the organization
 
-### NAMESPACE_ONLY（命名空间内可见）
-- ✅ 命名空间成员可以搜索和查看
-- 🔒 需要登录且是命名空间成员才能下载
-- 📍 适用于团队内部技能
+### NAMESPACE_ONLY
+- Namespace members can search and view
+- Login and namespace membership required to download
+- Suitable for team-internal skills
 
-### PRIVATE（私有）
-- ✅ 仅所有者可以查看
-- 🔒 需要登录且是所有者才能下载
-- 📍 适用于个人开发中的技能
+### PRIVATE
+- Only the owner can view
+- Login and ownership required to download
+- Suitable for skills under personal development
 
-**重要说明**：
-- 全局命名空间（`@global`）的 PUBLIC 技能支持匿名下载，便于组织内广泛分发
-- 团队命名空间的所有技能（包括 PUBLIC）都需要认证，确保团队边界安全
+**Important notes:**
+- PUBLIC skills in the global namespace (`@global`) support anonymous download for broad distribution within the organization
+- All skills in team namespaces (including PUBLIC) require authentication to ensure team boundary security
 
-## Canonical Slug 映射规则
+## Canonical Slug Mapping Rules
 
-SkillHub 内部使用 `@{namespace}/{skill}` 格式，但兼容层会自动转换为 ClawHub 风格的 canonical slug：
+SkillHub uses the `@{namespace}/{skill}` format internally, but the compatibility layer automatically converts to ClawHub-style canonical slugs:
 
-| SkillHub 内部坐标 | Canonical Slug | 说明 |
+| SkillHub Internal Coordinates | Canonical Slug | Description |
 |-------------------|----------------|------|
-| `@global/my-skill` | `my-skill` | 全局命名空间技能 |
-| `@my-team/my-skill` | `my-team--my-skill` | 团队命名空间技能 |
+| `@global/my-skill` | `my-skill` | Global namespace skill |
+| `@my-team/my-skill` | `my-team--my-skill` | Team namespace skill |
 
-OpenClaw CLI 使用 canonical slug 格式，SkillHub 会自动处理转换。
+The OpenClaw CLI uses canonical slug format; SkillHub handles the conversion automatically.
 
-## 配置示例
+## Configuration Examples
 
-### ClawHub CLI 环境变量配置
+### ClawHub CLI Environment Variable Configuration
 
-ClawHub CLI 通过环境变量配置：
+The ClawHub CLI is configured via environment variables:
 
 ```bash
-# Registry 配置
+# Registry configuration
 export CLAWHUB_REGISTRY=https://skillhub.your-company.com
 
-# 如需认证，先登录一次
+# If auth is needed, log in once first
 clawhub login --token sk_your_api_token_here
 ```
 
-### 环境变量配置
+### Environment Variable Configuration
 
 ```bash
-# Registry 配置
+# Registry configuration
 export CLAWHUB_REGISTRY=https://skillhub.your-company.com
 
-# 可选：登录后再执行需要认证的命令
+# Optional: log in before running commands that require auth
 clawhub login --token sk_your_api_token_here
 ```
 
-## 常见问题
+## Frequently Asked Questions
 
-### Q: 如何切换回公共 ClawHub？
+### Q: How do I switch back to the public ClawHub?
 
 ```bash
-# 取消设置自定义 Registry
+# Unset the custom registry
 unset CLAWHUB_REGISTRY
 
-# ClawHub CLI 将使用默认的公共注册中心
+# The ClawHub CLI will use the default public registry
 ```
 
-### Q: 下载技能时提示 403 Forbidden？
+### Q: Getting a 403 Forbidden when downloading a skill?
 
-可能原因：
-1. 技能属于团队命名空间，需要登录
-2. 技能是 NAMESPACE_ONLY 或 PRIVATE，需要登录
-3. 您不是该命名空间的成员
-4. API Token 已过期
+Possible causes:
+1. The skill belongs to a team namespace and requires login
+2. The skill is NAMESPACE_ONLY or PRIVATE and requires login
+3. You are not a member of that namespace
+4. The API Token has expired
 
-解决方法：
+Solution:
 ```bash
-# 设置新的 Token 并重新登录
+# Set a new token and log in again
 clawhub login --token YOUR_NEW_TOKEN
 
-# 测试连接
+# Test the connection
 curl https://skillhub.your-company.com/api/v1/whoami \
   -H "Authorization: Bearer YOUR_NEW_TOKEN"
 ```
 
-**提示**：全局命名空间（@global）的 PUBLIC 技能可以匿名下载，无需认证。
+**Tip**: PUBLIC skills in the global namespace (@global) can be downloaded anonymously without authentication.
 
-### Q: 如何查看我有权访问的所有技能？
+### Q: How do I view all skills I have access to?
 
 ```bash
-# 搜索所有技能（会根据权限过滤）
+# Search all skills (filtered by your permissions)
 npx clawhub search ""
 ```
 
-### Q: 发布技能时提示权限不足？
+### Q: Getting "insufficient permissions" when publishing a skill?
 
-- 发布到全局命名空间（`@global`）需要 `SUPER_ADMIN` 权限
-- 发布到团队命名空间需要是该命名空间的 OWNER 或 ADMIN
-- 联系管理员分配相应权限
+- Publishing to the global namespace (`@global`) requires `SUPER_ADMIN` permission
+- Publishing to a team namespace requires being an OWNER or ADMIN of that namespace
+- Contact your administrator to be assigned the appropriate permissions
 
-### Q: 支持哪些 OpenClaw 版本？
+### Q: Which OpenClaw versions are supported?
 
-SkillHub 兼容层设计兼容使用 ClawHub CLI 的工具。ClawHub CLI 通过 npm 分发：
+SkillHub's compatibility layer is designed to be compatible with tools using the ClawHub CLI. The ClawHub CLI is distributed via npm:
 
 ```bash
-# 安装 ClawHub CLI
+# Install the ClawHub CLI
 npm install -g clawhub
 
-# 或使用 npx 直接运行
+# Or run directly with npx
 npx clawhub install my-skill
 ```
 
-如遇到兼容性问题，请提交 Issue。
+If you encounter compatibility issues, please submit an issue.
 
-## API 响应格式
+## API Response Formats
 
-### 搜索响应示例
+### Search Response Example
 
 ```json
 {
@@ -296,7 +296,7 @@ npx clawhub install my-skill
 }
 ```
 
-### 版本解析响应示例
+### Version Resolution Response Example
 
 ```json
 {
@@ -306,7 +306,7 @@ npx clawhub install my-skill
 }
 ```
 
-### 发布响应示例
+### Publish Response Example
 
 ```json
 {
@@ -317,49 +317,49 @@ npx clawhub install my-skill
 }
 ```
 
-## 安全建议
+## Security Recommendations
 
-1. **使用 HTTPS**：生产环境务必使用 HTTPS 连接
-2. **Token 管理**：
-   - 定期轮换 API Token
-   - 不要在代码中硬编码 Token
-   - 使用环境变量或密钥管理工具
-3. **权限最小化**：为 Token 分配最小必需权限
-4. **审计日志**：定期检查 SkillHub 审计日志
+1. **Use HTTPS**: Always use HTTPS connections in production environments
+2. **Token management**:
+   - Rotate API tokens regularly
+   - Do not hardcode tokens in your code
+   - Use environment variables or secrets management tools
+3. **Principle of least privilege**: Assign the minimum required permissions to tokens
+4. **Audit logs**: Regularly review SkillHub audit logs
 
-## 故障排查
+## Troubleshooting
 
-### 启用调试日志
+### Enable Debug Logging
 
 ```bash
-# 查看详细请求日志
+# View detailed request logs
 DEBUG=clawhub:* npx clawhub search my-skill
 
-# 或使用 verbose 模式
+# Or use verbose mode
 npx clawhub --verbose install my-skill
 ```
 
-### 测试连接
+### Test Connectivity
 
 ```bash
-# 测试 Registry 连接
+# Test registry connection
 curl https://skillhub.your-company.com/api/v1/whoami \
   -H "Authorization: Bearer YOUR_TOKEN"
 
-# 测试搜索
+# Test search
 curl "https://skillhub.your-company.com/api/v1/search?q=test"
 ```
 
-## 进一步阅读
+## Further Reading
 
-- [SkillHub API 设计文档](./06-api-design.md)
-- [技能协议规范](./07-skill-protocol.md)
-- [认证与授权](./03-authentication-design.md)
-- [部署指南](./09-deployment.md)
+- [SkillHub API Design Document](./06-api-design.md)
+- [Skill Protocol Specification](./07-skill-protocol.md)
+- [Authentication and Authorization](./03-authentication-design.md)
+- [Deployment Guide](./09-deployment.md)
 
-## 支持
+## Support
 
-如有问题或建议：
-- 📖 查看完整文档：https://zread.ai/iflytek/skillhub
-- 💬 GitHub Discussions：https://github.com/iflytek/skillhub/discussions
-- 🐛 提交 Issue：https://github.com/iflytek/skillhub/issues
+For questions or suggestions:
+- View the full documentation: https://zread.ai/iflytek/skillhub
+- GitHub Discussions: https://github.com/iflytek/skillhub/discussions
+- Submit an Issue: https://github.com/iflytek/skillhub/issues

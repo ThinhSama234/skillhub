@@ -1,286 +1,286 @@
-# 文件预览语法高亮 - 产品需求文档 (PRD)
+# File Preview Syntax Highlighting - Product Requirements Document (PRD)
 
-## 需求描述
+## Requirements Description
 
-### 背景
-- **业务问题**：当前文件预览功能仅对 Markdown 文件提供语法高亮渲染，其他代码文件（Python、Shell、Java、TypeScript 等）只显示纯文本，用户体验不佳，无法快速理解代码结构。
-- **目标用户**：技能开发者、审核人员、技能使用者
-- **价值主张**：提供与 Markdown 代码块一致的高质量语法高亮，提升代码可读性，加速代码审查和理解效率。
+### Background
+- **Business problem**: The current file preview feature only provides syntax highlighting for Markdown files. Other code files (Python, Shell, Java, TypeScript, etc.) are displayed as plain text, resulting in a poor user experience and making it difficult to quickly understand code structure.
+- **Target users**: Skill developers, reviewers, skill users
+- **Value proposition**: Provide high-quality syntax highlighting consistent with Markdown code blocks, improving code readability and speeding up code review and comprehension.
 
-### 功能概述
-- **核心功能**：
-  1. 为常见编程语言（Python, Shell, Java, JS/TS, Go, Rust, C/C++, Ruby, PHP）提供语法高亮
-  2. 为配置文件（JSON, YAML, TOML, XML）提供语法高亮
-  3. 复用现有的 rehype-highlight（基于 highlight.js）渲染引擎
-  4. 保持与 Markdown 代码块一致的视觉样式
-  5. 支持 dark/light 主题自动切换
+### Feature Overview
+- **Core features**:
+  1. Syntax highlighting for common programming languages (Python, Shell, Java, JS/TS, Go, Rust, C/C++, Ruby, PHP)
+  2. Syntax highlighting for configuration files (JSON, YAML, TOML, XML)
+  3. Reuse the existing rehype-highlight (based on highlight.js) rendering engine
+  4. Maintain visual style consistent with Markdown code blocks
+  5. Support automatic dark/light theme switching
 
-- **功能边界**：
-  - **包含**：常见编程语言和配置文件的语法高亮、错误降级处理、性能优化
-  - **不包含**：行号显示、代码折叠、语法错误检测、自定义主题配置
+- **Feature scope**:
+  - **Included**: Syntax highlighting for common programming languages and configuration files, error fallback handling, performance optimization
+  - **Excluded**: Line number display, code folding, syntax error detection, custom theme configuration
 
-- **用户场景**：
-  1. 技能审核人员查看提交的 Python 脚本，快速识别代码逻辑
-  2. 开发者预览技能包中的配置文件（如 skill.yaml），确认参数配置
-  3. 用户浏览技能源码，了解实现细节
+- **User scenarios**:
+  1. A skill reviewer views a submitted Python script and quickly identifies code logic
+  2. A developer previews a configuration file (e.g. skill.yaml) in a skill package to verify parameter settings
+  3. A user browses skill source code to understand implementation details
 
-### 详细需求
-- **输入/输出**：
-  - 输入：文件路径、文件内容（InputStream）、文件扩展名
-  - 输出：带语法高亮的 HTML（通过 highlight.js 渲染）
+### Detailed Requirements
+- **Input/Output**:
+  - Input: File path, file content (InputStream), file extension
+  - Output: HTML with syntax highlighting (rendered via highlight.js)
 
-- **用户交互**：
-  1. 用户点击文件树中的代码文件节点
-  2. 前端显示 loading 状态
-  3. 后端返回文件内容和元数据（大小、类型）
-  4. 前端根据文件大小和类型决定渲染策略：
-     - ≤ 500KB：语法高亮渲染
-     - 500KB < size ≤ 1MB：纯文本渲染（无高亮）
-     - > 1MB：仅显示下载按钮
+- **User interaction**:
+  1. User clicks on a code file node in the file tree
+  2. Frontend displays a loading state
+  3. Backend returns file content and metadata (size, type)
+  4. Frontend selects a rendering strategy based on file size and type:
+     - ≤ 500KB: Syntax highlighted rendering
+     - 500KB < size ≤ 1MB: Plain text rendering (no highlighting)
+     - > 1MB: Show download button only
 
-- **数据要求**：
-  - 文件大小：通过 `SkillFile.fileSize` 字段获取
-  - 文件类型：通过文件扩展名推断（`.py` → Python）
-  - 语言映射：使用 `file-type-utils.ts` 中的映射表
+- **Data requirements**:
+  - File size: Retrieved from the `SkillFile.fileSize` field
+  - File type: Inferred from the file extension (`.py` → Python)
+  - Language mapping: Uses the mapping table in `file-type-utils.ts`
 
-- **边界情况**：
-  1. **无法识别的语言**：显示纯文本（无高亮），不报错
-  2. **语法高亮失败**：降级到纯文本显示，记录错误日志
-  3. **内存不足**：降级到纯文本显示，显示提示信息
-  4. **大文件（> 500KB）**：跳过语法高亮，直接显示纯文本
-  5. **超大文件（> 1MB）**：不预览，仅提供下载
+- **Edge cases**:
+  1. **Unrecognized language**: Display plain text (no highlighting); no error
+  2. **Syntax highlighting failure**: Fall back to plain text; log the error
+  3. **Insufficient memory**: Fall back to plain text; display a notice
+  4. **Large file (> 500KB)**: Skip syntax highlighting; display plain text directly
+  5. **Very large file (> 1MB)**: No preview; provide download only
 
-## 设计决策
+## Design Decisions
 
-### 技术方案
-- **架构选择**：复用现有的 rehype-highlight（基于 highlight.js）
-  - **理由**：
-    1. 零额外依赖，不增加包体积
-    2. 样式与 Markdown 代码块完全一致
-    3. 已有的语言支持（190+ 种语言）
-    4. 维护成本低
+### Technical Approach
+- **Architecture choice**: Reuse the existing rehype-highlight (based on highlight.js)
+  - **Rationale**:
+    1. Zero additional dependencies; no increase in bundle size
+    2. Styles are fully consistent with Markdown code blocks
+    3. Existing language support (190+ languages)
+    4. Low maintenance cost
 
-- **关键组件**：
-  1. **CodeRenderer 组件**（新增）：
-     - 位置：`web/src/features/skill/code-renderer.tsx`
-     - 职责：接收代码字符串和语言类型，调用 highlight.js 渲染
-     - 依赖：`highlight.js/lib/core` + 按需导入的语言包
+- **Key components**:
+  1. **CodeRenderer component** (new):
+     - Location: `web/src/features/skill/code-renderer.tsx`
+     - Responsibility: Accept a code string and language type, then call highlight.js to render
+     - Dependencies: `highlight.js/lib/core` + language packages imported on demand
 
-  2. **file-type-utils.ts**（扩展）：
-     - 新增 `getLanguageForHighlight(extension: string): string | null` 函数
-     - 映射文件扩展名到 highlight.js 语言标识符
+  2. **file-type-utils.ts** (extended):
+     - Add `getLanguageForHighlight(extension: string): string | null` function
+     - Map file extensions to highlight.js language identifiers
 
-  3. **file-preview-dialog.tsx**（修改）：
-     - 根据文件大小和类型选择渲染器：
+  3. **file-preview-dialog.tsx** (modified):
+     - Select the renderer based on file size and type:
        - Markdown → `MarkdownRenderer`
-       - 代码文件（≤ 500KB）→ `CodeRenderer`
-       - 代码文件（> 500KB）→ 纯文本 `<pre><code>`
-       - 其他 → 下载提示
+       - Code file (≤ 500KB) → `CodeRenderer`
+       - Code file (> 500KB) → Plain text `<pre><code>`
+       - Other → Download prompt
 
-- **数据存储**：
-  - 无需新增数据库字段
-  - 文件内容从云存储（ObjectStorageService）读取
-  - 文件大小已存储在 `SkillFile.fileSize` 字段
+- **Data storage**:
+  - No new database fields required
+  - File content is read from cloud storage (ObjectStorageService)
+  - File size is already stored in the `SkillFile.fileSize` field
 
-- **接口设计**：
-  - 复用现有 API：`GET /api/v1/reviews/{id}/file?path={filePath}`
-  - 响应格式：`InputStream`（保持不变）
-  - 前端根据 `Content-Length` 响应头判断文件大小
+- **Interface design**:
+  - Reuse existing API: `GET /api/v1/reviews/{id}/file?path={filePath}`
+  - Response format: `InputStream` (unchanged)
+  - Frontend determines file size from the `Content-Length` response header
 
-### 约束条件
-- **性能要求**：
-  - 语法高亮渲染时间：< 500ms（对于 500KB 文件）
-  - 首次加载时间：< 1s（包括网络请求）
-  - 内存占用：单个文件渲染 < 50MB
+### Constraints
+- **Performance requirements**:
+  - Syntax highlighting render time: < 500ms (for a 500KB file)
+  - First load time: < 1s (including network request)
+  - Memory usage: < 50MB per file render
 
-- **兼容性**：
-  - 浏览器：Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
-  - 移动端：支持响应式布局，但不优化触摸交互
+- **Compatibility**:
+  - Browsers: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+  - Mobile: Responsive layout supported; touch interaction not optimized
 
-- **安全性**：
-  - 使用 `dangerouslySetInnerHTML` 时，确保 highlight.js 输出已转义
-  - 防止 XSS 攻击：不允许用户自定义语法高亮规则
-  - 文件路径验证：复用现有的路径遍历防护（禁止 `..` 和绝对路径）
+- **Security**:
+  - When using `dangerouslySetInnerHTML`, ensure highlight.js output is escaped
+  - Prevent XSS attacks: do not allow users to customize syntax highlighting rules
+  - File path validation: reuse existing path traversal protection (disallow `..` and absolute paths)
 
-- **可扩展性**：
-  - 语言支持：通过按需导入语言包扩展，不影响初始包体积
-  - 主题支持：预留主题切换接口，当前仅支持跟随系统主题
+- **Extensibility**:
+  - Language support: Extend by importing language packages on demand without affecting initial bundle size
+  - Theme support: Reserve a theme-switching interface; currently only system theme is supported
 
-### 风险评估
-- **技术风险**：
-  - **风险**：大文件语法高亮导致浏览器卡顿
-  - **概率**：中
-  - **影响**：高
-  - **缓解措施**：
-    1. 设置 500KB 阈值，超过则不高亮
-    2. 增加 loading 状态提示用户
-    3. 提供"取消加载"按钮（后续优化）
+### Risk Assessment
+- **Technical risk**:
+  - **Risk**: Large file syntax highlighting causes browser lag
+  - **Probability**: Medium
+  - **Impact**: High
+  - **Mitigations**:
+    1. Set 500KB threshold; do not highlight files above this size
+    2. Add loading state to notify the user
+    3. Provide a "Cancel loading" button (future optimization)
 
-- **依赖风险**：
-  - **风险**：highlight.js 无法识别某些语言
-  - **概率**：低
-  - **影响**：低
-  - **缓解措施**：降级到纯文本显示，不影响核心功能
+- **Dependency risk**:
+  - **Risk**: highlight.js cannot recognize certain languages
+  - **Probability**: Low
+  - **Impact**: Low
+  - **Mitigation**: Fall back to plain text; does not affect core functionality
 
-- **进度风险**：
-  - **风险**：后端缓存和限流实现延期
-  - **概率**：中
-  - **影响**：中
-  - **缓解措施**：
-    1. 前端功能可独立上线
-    2. 后端优化作为独立任务，分阶段实施
+- **Schedule risk**:
+  - **Risk**: Backend caching and rate limiting implementation is delayed
+  - **Probability**: Medium
+  - **Impact**: Medium
+  - **Mitigations**:
+    1. Frontend feature can be released independently
+    2. Backend optimization is a separate task to be implemented in stages
 
-## 验收标准
+## Acceptance Criteria
 
-### 功能验收
-- [ ] 功能 1：Python 文件（.py）显示语法高亮（关键字、字符串、注释着色）
-- [ ] 功能 2：Shell 脚本（.sh, .bash）显示语法高亮
-- [ ] 功能 3：配置文件（JSON, YAML, TOML, XML）显示语法高亮
-- [ ] 功能 4：Java/TypeScript/JavaScript 文件显示语法高亮
-- [ ] 功能 5：无法识别的语言显示纯文本（不报错）
-- [ ] 功能 6：大文件（> 500KB）显示纯文本（无高亮）
-- [ ] 功能 7：超大文件（> 1MB）仅显示下载按钮
-- [ ] 功能 8：语法高亮样式与 Markdown 代码块一致
-- [ ] 功能 9：支持 dark/light 主题自动切换
-- [ ] 功能 10：复制代码按钮正常工作
+### Functional Acceptance
+- [ ] Feature 1: Python files (.py) display syntax highlighting (keywords, strings, comments colored)
+- [ ] Feature 2: Shell scripts (.sh, .bash) display syntax highlighting
+- [ ] Feature 3: Configuration files (JSON, YAML, TOML, XML) display syntax highlighting
+- [ ] Feature 4: Java/TypeScript/JavaScript files display syntax highlighting
+- [ ] Feature 5: Unrecognized languages display plain text (no error)
+- [ ] Feature 6: Large files (> 500KB) display plain text (no highlighting)
+- [ ] Feature 7: Very large files (> 1MB) show download button only
+- [ ] Feature 8: Syntax highlighting style is consistent with Markdown code blocks
+- [ ] Feature 9: Automatic dark/light theme switching works
+- [ ] Feature 10: Copy code button works correctly
 
-### 质量标准
-- [ ] 代码质量：通过 ESLint 和 TypeScript 类型检查
-- [ ] 测试覆盖：核心逻辑（CodeRenderer, getLanguageForHighlight）单元测试覆盖率 > 80%
-- [ ] 性能指标：
-  - 500KB 文件渲染时间 < 500ms（P95）
-  - 首次加载时间 < 1s（P95）
-  - Lighthouse 性能评分不下降
-- [ ] 安全审查：代码审查确认无 XSS 风险
+### Quality Standards
+- [ ] Code quality: Passes ESLint and TypeScript type checks
+- [ ] Test coverage: Core logic (CodeRenderer, getLanguageForHighlight) unit test coverage > 80%
+- [ ] Performance metrics:
+  - 500KB file render time < 500ms (P95)
+  - First load time < 1s (P95)
+  - Lighthouse performance score does not decrease
+- [ ] Security review: Code review confirms no XSS risk
 
-### 用户验收
-- [ ] 用户体验：审核人员反馈代码可读性提升
-- [ ] 文档：更新用户文档，说明支持的文件类型
-- [ ] 无障碍：键盘导航正常，屏幕阅读器可访问
+### User Acceptance
+- [ ] User experience: Reviewers report improved code readability
+- [ ] Documentation: Update user documentation to describe supported file types
+- [ ] Accessibility: Keyboard navigation works; screen reader accessible
 
-## 执行阶段
+## Execution Phases
 
-### 阶段 1：准备工作
-**目标**：环境准备和技术验证
-- [ ] 任务 1：调研 highlight.js 语言包按需导入方案
-- [ ] 任务 2：验证 rehype-highlight 的 CSS 样式可复用性
-- [ ] 任务 3：确认文件大小字段（`SkillFile.fileSize`）已存在
-- [ ] 任务 4：设计 CodeRenderer 组件 API
-- **交付物**：技术方案文档、组件 API 设计
-- **时间**：0.5 天
+### Phase 1: Preparation
+**Goal**: Environment preparation and technical validation
+- [ ] Task 1: Research highlight.js language package on-demand import approach
+- [ ] Task 2: Verify CSS style reusability of rehype-highlight
+- [ ] Task 3: Confirm that the file size field (`SkillFile.fileSize`) already exists
+- [ ] Task 4: Design CodeRenderer component API
+- **Deliverables**: Technical solution document, component API design
+- **Time**: 0.5 days
 
-### 阶段 2：核心开发
-**目标**：实现语法高亮核心功能
-- [ ] 任务 1：创建 CodeRenderer 组件
-  - 导入 highlight.js 核心库
-  - 按需导入常见语言包（Python, Shell, Java, JS/TS, Go, Rust, C/C++, Ruby, PHP）
-  - 按需导入配置文件语言包（JSON, YAML, TOML, XML）
-  - 实现 `highlightCode(code: string, language: string)` 函数
-  - 复用 Markdown 代码块的 CSS 样式
-- [ ] 任务 2：扩展 file-type-utils.ts
-  - 新增 `getLanguageForHighlight(extension: string)` 函数
-  - 映射文件扩展名到 highlight.js 语言标识符
-- [ ] 任务 3：修改 file-preview-dialog.tsx
-  - 根据文件大小和类型选择渲染器
-  - 实现 500KB 和 1MB 阈值逻辑
-  - 集成 CodeRenderer 组件
-- [ ] 任务 4：主题适配
-  - 确保语法高亮样式跟随 dark/light 主题
-  - 测试主题切换时的视觉一致性
-- **交付物**：可运行的语法高亮功能
-- **时间**：1.5 天
+### Phase 2: Core Development
+**Goal**: Implement core syntax highlighting functionality
+- [ ] Task 1: Create CodeRenderer component
+  - Import highlight.js core library
+  - Import common language packages on demand (Python, Shell, Java, JS/TS, Go, Rust, C/C++, Ruby, PHP)
+  - Import configuration file language packages on demand (JSON, YAML, TOML, XML)
+  - Implement `highlightCode(code: string, language: string)` function
+  - Reuse Markdown code block CSS styles
+- [ ] Task 2: Extend file-type-utils.ts
+  - Add `getLanguageForHighlight(extension: string)` function
+  - Map file extensions to highlight.js language identifiers
+- [ ] Task 3: Modify file-preview-dialog.tsx
+  - Select renderer based on file size and type
+  - Implement 500KB and 1MB threshold logic
+  - Integrate CodeRenderer component
+- [ ] Task 4: Theme adaptation
+  - Ensure syntax highlighting styles follow dark/light theme
+  - Test visual consistency during theme switching
+- **Deliverables**: Working syntax highlighting feature
+- **Time**: 1.5 days
 
-### 阶段 3：集成与测试
-**目标**：集成测试和质量保证
-- [ ] 任务 1：单元测试
-  - CodeRenderer 组件测试（不同语言、边界情况）
-  - getLanguageForHighlight 函数测试
-- [ ] 任务 2：集成测试
-  - 技能详情页文件预览测试
-  - 审核详情页文件预览测试
-- [ ] 任务 3：性能测试
-  - 测试 500KB 文件渲染时间
-  - 测试内存占用
-- [ ] 任务 4：浏览器兼容性测试
+### Phase 3: Integration and Testing
+**Goal**: Integration testing and quality assurance
+- [ ] Task 1: Unit tests
+  - CodeRenderer component tests (different languages, edge cases)
+  - getLanguageForHighlight function tests
+- [ ] Task 2: Integration tests
+  - Skill detail page file preview tests
+  - Review detail page file preview tests
+- [ ] Task 3: Performance tests
+  - Test 500KB file render time
+  - Test memory usage
+- [ ] Task 4: Browser compatibility tests
   - Chrome, Firefox, Safari, Edge
-- [ ] 任务 5：用户验收测试
-  - 邀请审核人员试用，收集反馈
-- **交付物**：测试报告、性能基准数据
-- **时间**：1 天
+- [ ] Task 5: User acceptance testing
+  - Invite reviewers to try it out and collect feedback
+- **Deliverables**: Test report, performance benchmark data
+- **Time**: 1 day
 
-### 阶段 4：部署与监控
-**目标**：上线发布和效果监控
-- [ ] 任务 1：代码审查
-  - 安全审查（XSS 风险）
-  - 性能审查（包体积、渲染性能）
-- [ ] 任务 2：部署到生产环境
-  - 前端构建和部署
-  - 验证生产环境功能正常
-- [ ] 任务 3：监控指标
-  - 文件预览 API 响应时间
-  - 前端渲染性能（通过 RUM）
-  - 错误率监控
-- [ ] 任务 4：文档更新
-  - 更新用户文档，说明支持的文件类型
-  - 更新开发者文档，说明如何添加新语言支持
-- **交付物**：生产环境部署、监控仪表板、用户文档
-- **时间**：0.5 天
+### Phase 4: Deployment and Monitoring
+**Goal**: Production release and effect monitoring
+- [ ] Task 1: Code review
+  - Security review (XSS risk)
+  - Performance review (bundle size, render performance)
+- [ ] Task 2: Deploy to production
+  - Frontend build and deploy
+  - Verify production functionality
+- [ ] Task 3: Monitoring metrics
+  - File preview API response time
+  - Frontend render performance (via RUM)
+  - Error rate monitoring
+- [ ] Task 4: Documentation updates
+  - Update user documentation to describe supported file types
+  - Update developer documentation on how to add new language support
+- **Deliverables**: Production deployment, monitoring dashboard, user documentation
+- **Time**: 0.5 days
 
 ---
 
-**文档版本**：1.0
-**创建时间**：2026-03-22
-**澄清轮次**：3
-**质量评分**：95/100
+**Document version**: 1.0
+**Created**: 2026-03-22
+**Clarification rounds**: 3
+**Quality score**: 95/100
 
-## 附录：后端优化方案（后续实施）
+## Appendix: Backend Optimization Plan (Future Implementation)
 
-以下优化方案已记录在文档中，但不在本次实施范围内，将作为独立任务后续统一实现。
+The following optimization plans are documented but are not within the current implementation scope. They will be implemented as separate tasks in the future.
 
-### 1. 后端缓存策略
-- **目标**：减少云存储读取次数，降低响应时间
-- **方案**：
-  - 使用 Redis 缓存文件内容
-  - 缓存键：`file:content:{storageKey}`
-  - TTL：1 小时
-  - 缓存策略：LRU（最近最少使用）
-- **预期效果**：
-  - 缓存命中率 > 60%
-  - 响应时间降低 50%
+### 1. Backend Caching Strategy
+- **Goal**: Reduce cloud storage read frequency and lower response time
+- **Approach**:
+  - Use Redis to cache file content
+  - Cache key: `file:content:{storageKey}`
+  - TTL: 1 hour
+  - Cache policy: LRU (Least Recently Used)
+- **Expected outcome**:
+  - Cache hit rate > 60%
+  - Response time reduced by 50%
 
-### 2. 限流策略
-- **目标**：防止文件预览 API 被滥用，保护后端服务
-- **方案**：
-  - 使用 `@RateLimit` 注解
-  - 配置：
+### 2. Rate Limiting Strategy
+- **Goal**: Prevent the file preview API from being abused and protect backend services
+- **Approach**:
+  - Use `@RateLimit` annotation
+  - Configuration:
     ```java
     @RateLimit(
         category = "file-preview",
-        authenticated = 60,    // 认证用户：每分钟 60 次
-        anonymous = 20,        // 匿名用户：每分钟 20 次
+        authenticated = 60,    // Authenticated users: 60 requests/minute
+        anonymous = 20,        // Anonymous users: 20 requests/minute
         windowSeconds = 60
     )
     ```
-  - 限流粒度：按用户 ID（认证用户）或 IP（匿名用户）
-  - 超出限流响应：返回 429 状态码 + `{"code": 429, "message": "error.rateLimit.exceeded"}`
-- **预期效果**：
-  - 防止单用户/IP 过度请求
-  - 保护云存储 API 配额
+  - Rate limit granularity: by user ID (authenticated users) or IP (anonymous users)
+  - Response when rate limit exceeded: return 429 + `{"code": 429, "message": "error.rateLimit.exceeded"}`
+- **Expected outcome**:
+  - Prevent excessive requests from a single user/IP
+  - Protect cloud storage API quota
 
-### 3. 监控指标
-- **目标**：实时监控文件预览功能的健康状况
-- **指标**：
-  - 文件预览 API 响应时间（P50, P95, P99）
-  - 文件预览 API 错误率
-  - 缓存命中率
-  - 限流触发次数
-  - 云存储 API 调用次数
-- **告警规则**：
-  - P95 响应时间 > 2s：警告
-  - 错误率 > 5%：严重
-  - 缓存命中率 < 40%：警告
+### 3. Monitoring Metrics
+- **Goal**: Real-time monitoring of file preview feature health
+- **Metrics**:
+  - File preview API response time (P50, P95, P99)
+  - File preview API error rate
+  - Cache hit rate
+  - Rate limit trigger count
+  - Cloud storage API call count
+- **Alert rules**:
+  - P95 response time > 2s: Warning
+  - Error rate > 5%: Critical
+  - Cache hit rate < 40%: Warning
 
-### 4. 实施优先级
-1. **P0（本次实施）**：前端语法高亮功能
-2. **P1（下个迭代）**：后端缓存策略
-3. **P2（后续优化）**：限流策略、监控指标
+### 4. Implementation Priority
+1. **P0 (current implementation)**: Frontend syntax highlighting feature
+2. **P1 (next iteration)**: Backend caching strategy
+3. **P2 (future optimization)**: Rate limiting strategy, monitoring metrics

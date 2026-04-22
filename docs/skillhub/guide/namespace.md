@@ -1,97 +1,97 @@
-# 命名空间与团队管理
+# Namespace and Team Management
 
-## 功能描述
+## Feature Description
 
-命名空间（Namespace）是 SkillHub 的核心组织单元。每个命名空间代表一个团队或项目，拥有独立的成员、权限和技能包。
+A Namespace is the core organizational unit in SkillHub. Each namespace represents a team or project and has its own members, permissions, and skill packages.
 
-![概念图](/diagrams/namespace-concept.png)
+![Concept diagram](/diagrams/namespace-concept.png)
 
-**命名空间的作用**：
+**What namespaces do**:
 
-- **隔离**：不同团队的技能包互不干扰
-- **权限**：基于角色的访问控制（RBAC）
-- **协作**：团队成员可以共同管理技能包
-- **治理**：管理员可以审核、归档、冻结技能包
+- **Isolation**: Skills from different teams do not interfere with each other
+- **Permissions**: Role-based access control (RBAC)
+- **Collaboration**: Team members can jointly manage skill packages
+- **Governance**: Administrators can review, archive, and freeze skill packages
 
-**角色体系**：
+**Role system**:
 
-| 角色 | 权限 |
+| Role | Permissions |
 |------|------|
-| **Owner** | 完全控制，包括删除命名空间、管理所有成员 |
-| **Admin** | 管理成员、审核技能包、修改设置 |
-| **Member** | 发布技能包、查看私有技能包 |
+| **Owner** | Full control, including deleting the namespace and managing all members |
+| **Admin** | Manage members, review skill packages, modify settings |
+| **Member** | Publish skill packages, view private skill packages |
 
-**命名空间状态**：
+**Namespace status**:
 
-- **Active**：正常运行
-- **Frozen**：冻结状态，无法发布新技能包
-- **Archived**：归档状态，从搜索结果中隐藏
+- **Active**: Operating normally
+- **Frozen**: Frozen state; no new skill packages can be published
+- **Archived**: Archived state; hidden from search results
 
-## 使用场景
+## Use Cases
 
-**场景一：创建团队命名空间**
+**Scenario 1: Create a team namespace**
 
-团队负责人创建一个新的命名空间，用于管理团队的技能包。
+A team lead creates a new namespace to manage the team's skill packages.
 
-![操作截图](/screenshots/namespace-create.png)
+![Screenshot](/screenshots/namespace-create.png)
 
-**场景二：添加团队成员**
+**Scenario 2: Add team members**
 
-管理员邀请新成员加入命名空间，分配合适的角色。
+An admin invites new members to join the namespace and assigns appropriate roles.
 
-![操作截图](/screenshots/namespace-members.png)
+![Screenshot](/screenshots/namespace-members.png)
 
-**场景三：权限管理**
+**Scenario 3: Permission management**
 
-调整成员角色，控制谁可以发布、审核、管理技能包。
+Adjust member roles to control who can publish, review, and manage skill packages.
 
-**场景四：命名空间冻结**
+**Scenario 4: Namespace freeze**
 
-发现命名空间有安全问题，临时冻结所有发布操作。
+A security issue is discovered in a namespace, so all publish operations are temporarily frozen.
 
-## 使用步骤
+## Usage Steps
 
-**创建命名空间**：
+**Create a namespace**:
 
-1. 访问 `/dashboard/namespaces`
-2. 点击「创建命名空间」
-3. 填写信息：
-   - 名称：团队名称（例如 "iFlytek AI Team"）
-   - Slug：URL 标识符（例如 "iflytek"）
-   - 描述：简要说明团队职责和技能包范围
+1. Go to `/dashboard/namespaces`
+2. Click "Create Namespace"
+3. Fill in the details:
+   - Name: Team name (e.g. "iFlytek AI Team")
+   - Slug: URL identifier (e.g. "iflytek")
+   - Description: Brief summary of the team's responsibilities and skill package scope
 
-![流程图](/diagrams/namespace-create-flow.png)
+![Flow diagram](/diagrams/namespace-create-flow.png)
 
-4. 提交创建，系统自动将你设为 Owner
+4. Submit to create; the system automatically sets you as the Owner
 
-**添加成员**：
+**Add members**:
 
-1. 进入命名空间详情页
-2. 点击「成员」标签
-3. 点击「添加成员」
-4. 搜索用户（支持按用户名、邮箱搜索）
-5. 选择角色（Owner / Admin / Member）
-6. 确认添加
+1. Go to the namespace detail page
+2. Click the "Members" tab
+3. Click "Add Member"
+4. Search for users (supports searching by username or email)
+5. Select a role (Owner / Admin / Member)
+6. Confirm the addition
 
-**管理权限**：
+**Manage permissions**:
 
-1. 在成员列表中找到目标用户
-2. 点击「修改角色」
-3. 选择新角色并确认
-4. 系统会记录权限变更到审计日志
+1. Find the target user in the member list
+2. Click "Change Role"
+3. Select the new role and confirm
+4. The system will record the permission change in the audit log
 
-**冻结命名空间**：
+**Freeze a namespace**:
 
-1. 进入命名空间设置
-2. 点击「冻结命名空间」
-3. 填写冻结原因（可选）
-4. 确认冻结
+1. Go to namespace settings
+2. Click "Freeze Namespace"
+3. Enter a freeze reason (optional)
+4. Confirm the freeze
 
-> 冻结后，命名空间内的所有技能包无法发布新版本，但已有版本仍可下载。
+> After freezing, no new versions of skill packages within the namespace can be published, but existing versions can still be downloaded.
 
-## API 接口
+## API Reference
 
-**创建命名空间**：
+**Create namespace**:
 ```bash
 POST /api/v1/namespaces
 Content-Type: application/json
@@ -103,19 +103,19 @@ Content-Type: application/json
 }
 ```
 
-**参数说明**：
-| 参数 | 类型 | 说明 |
+**Parameter description**:
+| Parameter | Type | Description |
 |------|------|------|
-| name | string | 命名空间名称（必需，2-50 字符） |
-| slug | string | URL 标识符（必需，唯一，2-64 字符，只能包含小写字母、数字、连字符） |
-| description | string | 描述（可选，最多 500 字符） |
+| name | string | Namespace name (required, 2-50 characters) |
+| slug | string | URL identifier (required, unique, 2-64 characters, lowercase letters, digits, and hyphens only) |
+| description | string | Description (optional, up to 500 characters) |
 
-**获取命名空间详情**：
+**Get namespace detail**:
 ```bash
 GET /api/v1/namespaces/{slug}
 ```
 
-**更新命名空间**：
+**Update namespace**:
 ```bash
 PUT /api/v1/namespaces/{slug}
 Content-Type: application/json
@@ -126,7 +126,7 @@ Content-Type: application/json
 }
 ```
 
-**添加成员**：
+**Add member**:
 ```bash
 POST /api/v1/namespaces/{slug}/members
 Content-Type: application/json
@@ -137,7 +137,7 @@ Content-Type: application/json
 }
 ```
 
-**更新成员角色**：
+**Update member role**:
 ```bash
 PUT /api/v1/namespaces/{slug}/members/{userId}/role
 Content-Type: application/json
@@ -147,12 +147,12 @@ Content-Type: application/json
 }
 ```
 
-**移除成员**：
+**Remove member**:
 ```bash
 DELETE /api/v1/namespaces/{slug}/members/{userId}
 ```
 
-**冻结命名空间**：
+**Freeze namespace**:
 ```bash
 POST /api/v1/namespaces/{slug}/freeze
 Content-Type: application/json
@@ -162,17 +162,17 @@ Content-Type: application/json
 }
 ```
 
-**解冻命名空间**：
+**Unfreeze namespace**:
 ```bash
 POST /api/v1/namespaces/{slug}/unfreeze
 ```
 
-## 注意事项
+## Notes
 
-> **Slug 唯一性**：命名空间 slug 在全局范围内必须唯一，且创建后不可修改。建议使用团队或项目的简短标识符。
+> **Slug uniqueness**: The namespace slug must be globally unique and cannot be changed after creation. Use a short identifier for your team or project.
 
-- **Owner 权限**：每个命名空间至少需要一个 Owner，最后一个 Owner 无法被移除
-- **角色继承**：命名空间成员自动拥有该命名空间下所有技能包的访问权限
-- **冻结机制**：管理员可以冻结命名空间，冻结后无法发布新技能包
-- **归档机制**：归档的命名空间会从搜索结果中隐藏，但已有技能包仍可访问
-- **审计日志**：所有成员变更、权限调整都会记录到审计日志
+- **Owner permission**: Each namespace requires at least one Owner; the last Owner cannot be removed
+- **Role inheritance**: Namespace members automatically have access to all skill packages within that namespace
+- **Freeze mechanism**: Admins can freeze a namespace; once frozen, no new skill packages can be published
+- **Archive mechanism**: Archived namespaces are hidden from search results, but existing skill packages remain accessible
+- **Audit log**: All member changes and permission adjustments are recorded in the audit log

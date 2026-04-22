@@ -1,207 +1,207 @@
-# skillhub 系统架构设计
+# skillhub System Architecture Design
 
-## 1. 技术基线
+## 1. Technology Baseline
 
 - JDK: 21
-- Framework: Spring Boot 3.x（最新稳定版）
+- Framework: Spring Boot 3.x (latest stable version)
 - Security: Spring Security + spring-boot-starter-oauth2-client
 - Database: PostgreSQL 16.x
-- Cache/Session: Redis 7.x（一期必须依赖，用于 Session 存储 + 分布式锁 + 幂等去重）
-- Object Storage: `LocalFile` + S3 协议兼容对象存储双实现
-- Search: PostgreSQL Full-Text Search（一期）
+- Cache/Session: Redis 7.x (required in Phase 1; used for Session storage + distributed locks + idempotency deduplication)
+- Object Storage: `LocalFile` + dual implementation compatible with S3 protocol
+- Search: PostgreSQL Full-Text Search (Phase 1)
 - Future Search: Elasticsearch / OpenSearch / Vector Search
 
-## 2. 总体架构
+## 2. Overall Architecture
 
-采用单体优先、模块化单体设计。业务域清晰，一期规模不需要拆分微服务。
+A monolith-first, modular monolith design is adopted. Business domains are clearly separated; the Phase 1 scale does not require microservice decomposition.
 
-## 3. 后端模块结构
+## 3. Backend Module Structure
 
 ```
 server/
-├── skillhub-app                 # 启动、配置装配、Controller 聚合
-├── skillhub-domain              # 领域模型 + 领域服务 + 应用服务
-├── skillhub-auth                # OAuth2 认证 + RBAC + 授权判定
-├── skillhub-search              # 搜索 SPI + PostgreSQL 全文实现
-├── skillhub-storage             # 对象存储抽象 + LocalFile/S3 双实现
-└── skillhub-infra               # JPA、通用工具、配置基础
+├── skillhub-app                 # Startup, configuration assembly, Controller aggregation
+├── skillhub-domain              # Domain model + domain services + application services
+├── skillhub-auth                # OAuth2 authentication + RBAC + authorization evaluation
+├── skillhub-search              # Search SPI + PostgreSQL full-text implementation
+├── skillhub-storage             # Object storage abstraction + LocalFile/S3 dual implementation
+└── skillhub-infra               # JPA, common utilities, configuration infrastructure
 ```
 
-## 4. 模块依赖方向（依赖倒置，禁止领域层依赖基础设施）
+## 4. Module Dependency Direction (Dependency Inversion; domain layer must not depend on infrastructure)
 
 ```
 app → domain, auth, search, storage, infra
-infra → domain          # infra 实现 domain 定义的 Repository 接口
-auth → domain           # auth 引用 UserAccount 等领域实体
-search → domain         # search 引用 SkillSearchDocument 等领域模型
-storage → (独立抽象)     # 纯 SPI，不依赖 domain
+infra → domain          # infra implements Repository interfaces defined in domain
+auth → domain           # auth references domain entities such as UserAccount
+search → domain         # search references domain models such as SkillSearchDocument
+storage → (independent abstraction)  # pure SPI, no dependency on domain
 ```
 
-核心原则：
-- domain 是最内层，不依赖任何其他模块，只定义接口和实体
-- infra 实现 domain 中定义的 Repository 接口（Spring Data JPA）
-- app 负责装配所有模块，通过 Spring 依赖注入将 infra 实现注入 domain 接口
-- 禁止 domain → infra 方向的依赖，避免领域层与 JPA、事件实现绑死
+Core principles:
+- domain is the innermost layer; it depends on no other modules and only defines interfaces and entities
+- infra implements the Repository interfaces defined in domain (Spring Data JPA)
+- app is responsible for assembling all modules; Spring dependency injection wires infra implementations into domain interfaces
+- The domain → infra dependency direction is forbidden, to prevent the domain layer from being tightly coupled to JPA or event implementations
 
-## 5. 各模块职责
+## 5. Module Responsibilities
 
 ### skillhub-app
-- Spring Boot 启动类
-- Controller 聚合：公开查询、认证后写接口、CLI API、兼容层、管理后台
-- 全局异常处理、请求日志、OpenAPI 配置
-- 配置文件与环境 profile
-- 应用层 boundary 约定：
-  - Controller 只负责 transport：鉴权上下文提取、请求参数绑定、响应包装
-  - App Service 负责 workflow orchestration：跨 domain service 协调、分页入口、审计字段传递、调用 dedicated query repository
-  - App Service 不直接承担复杂 read-model 拼装；当一个响应需要 join 多个聚合、快照字段、JSON 解析、展示态投影时，应优先抽成 query repository
-  - `skillhub-app/repository` 包中的 query repository 只服务应用层读模型，不承载领域写规则
+- Spring Boot startup class
+- Controller aggregation: public query endpoints, authenticated write endpoints, CLI API, compatibility layer, admin console
+- Global exception handling, request logging, OpenAPI configuration
+- Configuration files and environment profiles
+- Application layer boundary conventions:
+  - Controllers are responsible only for transport: extracting the authorization context, binding request parameters, and wrapping responses
+  - App Services are responsible for workflow orchestration: coordinating across domain services, pagination entry points, passing audit fields, and calling dedicated query repositories
+  - App Services do not directly handle complex read-model assembly; when a response requires joining multiple aggregates, snapshot fields, JSON parsing, or display-state projections, a query repository should be extracted first
+  - Query repositories in the `skillhub-app/repository` package serve application-layer read models only and do not carry domain write rules
 
 ### skillhub-domain
-- 核心实体：Skill, SkillVersion, SkillFile, SkillTag, Namespace, NamespaceMember, ReviewTask, PromotionRequest, AuditLog, SkillStar, SkillRating, IdempotencyRecord
-- 领域服务：发布流程编排、审核状态机、命名空间管理、标签管理
-- 应用服务：聚焦领域规则与用例编排
-- Repository 接口定义（实现在 infra）
+- Core entities: Skill, SkillVersion, SkillFile, SkillTag, Namespace, NamespaceMember, ReviewTask, PromotionRequest, AuditLog, SkillStar, SkillRating, IdempotencyRecord
+- Domain services: publish workflow orchestration, review state machine, namespace management, tag management
+- Application services: focused on domain rules and use-case orchestration
+- Repository interface definitions (implementations in infra)
 
 ### skillhub-auth
-- Spring Security OAuth2 Client 配置（一期 GitHub，可扩展多 Provider）
-- `CustomOAuth2UserService`：OAuth2 用户 → 平台用户映射
-- `IdentityBindingService`：外部身份 → 平台用户绑定
-- Spring Session (Redis) 管理
-- CLI Device Flow 授权、轮询与凭证签发
-- API Token 签发、校验、吊销
-- RBAC：角色定义、权限点、资源级授权判定
-- 用户实体：UserAccount, IdentityBinding, ApiToken, Role, Permission, UserRoleBinding
+- Spring Security OAuth2 Client configuration (Phase 1: GitHub; extensible to multiple providers)
+- `CustomOAuth2UserService`: OAuth2 user → platform user mapping
+- `IdentityBindingService`: external identity → platform user binding
+- Spring Session (Redis) management
+- CLI Device Flow authorization, polling, and credential issuance
+- API Token issuance, validation, and revocation
+- RBAC: role definitions, permission points, resource-level authorization evaluation
+- User entities: UserAccount, IdentityBinding, ApiToken, Role, Permission, UserRoleBinding
 
 ### skillhub-search
-- SPI 接口：`SearchIndexService`, `SearchQueryService`, `SearchRebuildService`
-- 一期实现：`PostgresFullTextIndexService`, `PostgresFullTextQueryService`
-- 独立搜索文档表 `skill_search_document`
-- 未来扩展点：ES / 向量检索实现
+- SPI interfaces: `SearchIndexService`, `SearchQueryService`, `SearchRebuildService`
+- Phase 1 implementation: `PostgresFullTextIndexService`, `PostgresFullTextQueryService`
+- Separate search document table `skill_search_document`
+- Future extension points: ES / vector search implementations
 
 ### skillhub-storage
-- SPI 接口：`ObjectStorageService`
-- 一期实现：`LocalFileStorageService`（本地开发/零依赖）+ `S3StorageService`（集成测试/生产）
-- 文件哈希校验、打包下载
-- 对象 key 规则（使用不可变 ID，避免命名空间变更导致 key 失效）：
-  - 正式路径：`skills/{skillId}/{versionId}/{filePath}`
-  - 打包路径：`packages/{skillId}/{versionId}/bundle.zip`
+- SPI interface: `ObjectStorageService`
+- Phase 1 implementation: `LocalFileStorageService` (local development / zero dependencies) + `S3StorageService` (integration testing / production)
+- File hash validation, packaged download
+- Object key rules (using immutable IDs to prevent key invalidation caused by namespace renames):
+  - Official path: `skills/{skillId}/{versionId}/{filePath}`
+  - Package path: `packages/{skillId}/{versionId}/bundle.zip`
 
 ### skillhub-infra
-- Spring Data JPA Repository 实现
-- Repository 实现
-- 通用工具（ID 生成、时间、JSON 等）
-- Spring Events 异步事件基础设施
+- Spring Data JPA Repository implementations
+- Repository implementations
+- Common utilities (ID generation, time, JSON, etc.)
+- Spring Events asynchronous event infrastructure
 
-## 6. 前端工程结构
+## 6. Frontend Project Structure
 
 ```
 web/
 ├── src/
-│   ├── app/              # 路由、全局 Provider、布局
-│   ├── pages/            # 页面入口
-│   ├── features/         # 搜索、上传、版本管理、审核等业务功能
-│   ├── entities/         # skill、user、namespace 等领域展示逻辑
-│   ├── shared/           # 通用组件、hooks、工具
-│   └── api/              # openapi-typescript 生成的类型 + openapi-fetch 客户端
+│   ├── app/              # Routing, global Providers, layout
+│   ├── pages/            # Page entry points
+│   ├── features/         # Business features: search, upload, version management, review, etc.
+│   ├── entities/         # Display logic for domain objects: skill, user, namespace, etc.
+│   ├── shared/           # Common components, hooks, utilities
+│   └── api/              # Types generated by openapi-typescript + openapi-fetch client
 ├── package.json
 └── vite.config.ts
 ```
 
-技术栈：React 19 + TypeScript + Vite + shadcn/ui + Tailwind CSS + TanStack Query + TanStack Router + openapi-fetch
+Tech stack: React 19 + TypeScript + Vite + shadcn/ui + Tailwind CSS + TanStack Query + TanStack Router + openapi-fetch
 
-## 7. Monorepo 顶层结构
+## 7. Monorepo Top-Level Structure
 
 ```
 skillhub/
-├── server/               # Maven 多模块 Java 后端
-│   └── Dockerfile        # 后端多阶段构建
-├── web/                  # React 前端
-│   ├── Dockerfile        # 前端多阶段构建
-│   ├── nginx.conf.template        # Nginx 运行时模板
-│   └── runtime-config.js.template # 前端运行时环境变量模板
-├── docker-compose.yml    # 本地开发依赖服务（PostgreSQL/Redis/MinIO）
-├── compose.release.yml   # 单机运行时编排（发布镜像 + PostgreSQL + Redis）
-├── .env.release.example  # 单机运行时环境变量模板
-├── .github/workflows/    # GitHub Actions 镜像发布流程
-├── Makefile              # 顶层开发编排（dev / dev-all / build）
-├── docs/                 # 设计文档
+├── server/               # Maven multi-module Java backend
+│   └── Dockerfile        # Backend multi-stage build
+├── web/                  # React frontend
+│   ├── Dockerfile        # Frontend multi-stage build
+│   ├── nginx.conf.template        # Nginx runtime template
+│   └── runtime-config.js.template # Frontend runtime environment variable template
+├── docker-compose.yml    # Local development dependency services (PostgreSQL/Redis/MinIO)
+├── compose.release.yml   # Single-machine runtime orchestration (release images + PostgreSQL + Redis)
+├── .env.release.example  # Single-machine runtime environment variable template
+├── .github/workflows/    # GitHub Actions image publishing workflow
+├── Makefile              # Top-level development orchestration (dev / dev-all / build)
+├── docs/                 # Design documents
 └── README.md
 ```
 
-简单分目录，各自独立构建，Makefile 串联。
+Simple directory layout; each part builds independently, with a Makefile to chain them together.
 
-## 8. 部署架构
+## 8. Deployment Architecture
 
-部署模型收敛为两条路径：
+The deployment model converges to two paths:
 
-- 开发路径：`make dev-all`。前后端在宿主机运行，`docker-compose.yml` 只负责 PostgreSQL、Redis、MinIO。
-- 交付路径：GitHub Actions 构建并发布 `server` / `web` 镜像；用户通过 `compose.release.yml` 在本地一键拉起前后端容器和基础服务。
-- 发布镜像为多架构 manifest，至少覆盖 `linux/amd64` 与 `linux/arm64`。
+- Development path: `make dev-all`. The frontend and backend run on the host machine; `docker-compose.yml` is responsible only for PostgreSQL, Redis, and MinIO.
+- Delivery path: GitHub Actions builds and publishes `server` / `web` images; users use `compose.release.yml` to launch frontend and backend containers along with infrastructure services with a single command.
+- Published images are multi-architecture manifests covering at least `linux/amd64` and `linux/arm64`.
 
-单机运行时统一入口：
-- `http://localhost/` → Web 容器（Nginx）
-- `http://localhost/api/*` → Web 容器反向代理到 Spring Boot
-- `http://localhost:8080/actuator/health` → 后端健康检查
+Single-machine runtime unified entry point:
+- `http://localhost/` → Web container (Nginx)
+- `http://localhost/api/*` → Web container reverse-proxies to Spring Boot
+- `http://localhost:8080/actuator/health` → Backend health check
 
-单机运行时默认使用 `docker` profile：
-- `docker` 负责容器运行时初始化，例如首个管理员账户
-- 数据库、Redis、对象存储、站点公网地址都通过环境变量注入
-- 生产环境不启用 `local` profile，因此不会暴露 mock 登录旁路
+The single-machine runtime defaults to using the `docker` profile:
+- `docker` is responsible for container runtime initialization, such as creating the first admin account
+- Database, Redis, object storage, and the public site URL are all injected via environment variables
+- The `local` profile is not enabled in production, so the mock login bypass is not exposed
 
-## 9. 分布式环境要求
+## 9. Distributed Environment Requirements
 
-本服务在 K8s 中部署多个 Pod，所有组件必须无状态设计。
+This service is deployed as multiple Pods in Kubernetes; all components must be designed to be stateless.
 
-| 组件 | 一期要求 | 职责 |
+| Component | Phase 1 Requirement | Responsibility |
 |------|---------|------|
-| PostgreSQL 16.x | 主从 | 主存储 |
-| Redis 7.x | Sentinel 或 Cluster | Session 存储 + 分布式锁 + 幂等去重 |
-| 对象存储 | LocalFile（开发）/ MinIO / 云厂商 S3 | 技能包文件 + 预打包 zip |
-| Ingress | Nginx Ingress Controller | 路由分发 + TLS 终止 |
+| PostgreSQL 16.x | Primary-replica | Primary storage |
+| Redis 7.x | Sentinel or Cluster | Session storage + distributed locks + idempotency deduplication |
+| Object Storage | LocalFile (development) / MinIO / Cloud S3 | Skill package files + pre-packaged zip |
+| Ingress | Nginx Ingress Controller | Routing + TLS termination |
 
-## 10. 推荐的一期技术决策
+## 10. Recommended Phase 1 Technology Decisions
 
-- ORM：Spring Data JPA (Hibernate)
-- API 文档：Springdoc OpenAPI
-- 对象存储：开发默认 LocalFile，集成测试/生产使用 MinIO / AWS S3 兼容接口
-- 异步任务：Spring Events + 异步线程池，后续视复杂度引入 MQ
-- 缓存/Session：Spring Session + Redis
-- 数据库迁移：Flyway
-- 认证：Spring Security OAuth2 Client（一期 GitHub）
-- 镜像发布：GitHub Actions 推送至 GHCR，默认维护 `edge` 与语义化版本标签
-- 运行时兼容：发布镜像默认输出 `linux/amd64` + `linux/arm64` 多架构 manifest
+- ORM: Spring Data JPA (Hibernate)
+- API Documentation: Springdoc OpenAPI
+- Object Storage: LocalFile by default for development; MinIO / AWS S3-compatible interface for integration testing and production
+- Async Tasks: Spring Events + async thread pool; introduce MQ later depending on complexity
+- Cache/Session: Spring Session + Redis
+- Database Migration: Flyway
+- Authentication: Spring Security OAuth2 Client (Phase 1: GitHub)
+- Image Publishing: GitHub Actions pushes to GHCR; maintains `edge` and semantic version tags by default
+- Runtime Compatibility: Published images output multi-architecture manifests for `linux/amd64` + `linux/arm64` by default
 
-## 11. Repository / Query Boundary 约定
+## 11. Repository / Query Boundary Conventions
 
-为了减少“应用层直接拼读模型”和“repository 风格混用”带来的认知成本，后端按下面的规则收敛：
+To reduce the cognitive overhead caused by "application layer directly assembling read models" and "mixed repository styles," the backend consolidates according to the following rules:
 
 ### 11.1 Domain Repository Port
 
-- 放在 `skillhub-domain`
-- 服务于聚合读写、状态迁移、规则判断
-- 可以被 domain service 直接依赖
-- 返回值以领域对象和领域查询语义为主；当前代码里允许继续使用 Spring Data 的 `Page` / `Pageable`，但这是现阶段接受的折中，不代表所有新读模型都应继续扩大这一模式
+- Located in `skillhub-domain`
+- Serves aggregate reads/writes, state transitions, and rule evaluation
+- Can be directly depended on by domain services
+- Return values are primarily domain objects and domain query semantics; the current codebase allows continued use of Spring Data's `Page` / `Pageable`, but this is an accepted compromise for the current stage and does not mean all new read models should continue to expand this pattern
 
-适用场景：
+Applicable scenarios:
 
-- `SkillRepository`、`ReviewTaskRepository`、`PromotionRequestRepository`
-- 领域规则需要读取或持久化聚合本身
-- 一个用例的核心价值在“改变状态”而不是“拼响应”
+- `SkillRepository`, `ReviewTaskRepository`, `PromotionRequestRepository`
+- Domain rules require reading or persisting aggregates themselves
+- The core value of a use case lies in "changing state" rather than "assembling a response"
 
 ### 11.2 App Query Repository
 
-- 放在 `skillhub-app/repository`
-- 服务于 controller / app service 需要的 read model，而不是领域写规则
-- 输入通常是领域对象列表、分页结果内容或稳定 ID 集合
-- 输出通常是 DTO、summary card、inbox item、admin list row 之类的展示态模型
+- Located in `skillhub-app/repository`
+- Serves the read models required by controllers and app services, not domain write rules
+- Input is typically a list of domain objects, paginated result content, or a stable set of IDs
+- Output is typically display-state models such as DTOs, summary cards, inbox items, or admin list rows
 
-适用场景：
+Applicable scenarios:
 
-- 需要 join 多个 repository / service 结果
-- 需要做展示态投影、兼容层映射、旧字段快照回填、JSON 提取
-- 同一类 read-model 组装逻辑会被多个 app service / controller 复用
+- When joining results from multiple repositories or services is required
+- When display-state projections, compatibility layer mappings, legacy field snapshot backfilling, or JSON extraction are needed
+- When the same read-model assembly logic is reused across multiple app services or controllers
 
-当前样例：
+Current examples:
 
 - `GovernanceQueryRepository`
 - `MySkillQueryRepository`
@@ -209,32 +209,32 @@ skillhub/
 
 ### 11.3 App Service
 
-- 放在 `skillhub-app/service`
-- 负责 workflow owner 语义，而不是底层数据拼接细节
-- 可以同时调用 domain service、domain repository port、app query repository
-- 应优先表达“这个入口做什么”，而不是“这个入口怎样拼 DTO”
+- Located in `skillhub-app/service`
+- Responsible for the "workflow owner" semantics, not low-level data assembly details
+- Can simultaneously call domain services, domain repository ports, and app query repositories
+- Should prioritize expressing "what this entry point does" rather than "how this entry point assembles a DTO"
 
-允许：
+Allowed:
 
-- 解析筛选条件、分页参数、平台角色
-- 选择调用哪条 domain workflow
-- 调用 query repository 组装最终 read model
+- Parsing filter conditions, pagination parameters, and platform roles
+- Choosing which domain workflow to invoke
+- Calling query repositories to assemble the final read model
 
-不鼓励：
+Discouraged:
 
-- 在 app service 里重复写批量 user lookup、namespace join、version projection、JSON 字段提取
-- 让多个 app service 各自复制同类 summary/inbox/list row 组装代码
+- Repeating batch user lookup, namespace join, version projection, or JSON field extraction inside app services
+- Having multiple app services each copy the same summary/inbox/list row assembly code
 
-### 11.4 直接 Persistence Access
+### 11.4 Direct Persistence Access
 
-- 仅在少数场景允许，例如高度专用的搜索 SQL、管理端特殊检索、兼容层过渡适配
-- 这类入口应尽量集中，并通过命名或 package docs 明确“它为什么没有走 domain repository port 或 app query repository”
+- Only permitted in a small number of scenarios, such as highly specialized search SQL, admin-side special queries, or compatibility layer transitional adapters
+- Such entry points should be centralized as much as possible, with naming or package documentation clearly explaining "why this did not go through the domain repository port or app query repository"
 
-### 11.5 选择规则
+### 11.5 Selection Rules
 
-面对一个新读用例时，按下面顺序判断：
+When facing a new read use case, evaluate in the following order:
 
-1. 如果它主要服务状态迁移或领域规则判断，优先放在 domain repository port / domain service。
-2. 如果它主要服务页面、列表、详情响应组装，而且需要 join 多个来源，优先建 app query repository。
-3. 如果它只是一个很薄的单聚合读取，不需要额外投影或 join，可以直接由 app service 调用现有 domain repository/query service。
-4. 如果必须直接写 SQL 或 `EntityManager`，需要在类注释里说明原因和边界，避免它演变成默认模式。
+1. If it primarily serves state transitions or domain rule evaluation, prefer placing it in the domain repository port / domain service.
+2. If it primarily serves page, list, or detail response assembly and requires joining multiple sources, prefer creating an app query repository.
+3. If it is a very thin single-aggregate read that requires no additional projection or joins, it can be directly called by the app service using an existing domain repository/query service.
+4. If writing SQL or `EntityManager` directly is necessary, explain the reason and boundary in a class comment to prevent it from becoming the default pattern.

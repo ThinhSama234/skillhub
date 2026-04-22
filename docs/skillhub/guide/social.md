@@ -1,97 +1,97 @@
-# 用户交互与社交
+# User Interaction and Social Features
 
-## 功能描述
+## Feature Description
 
-SkillHub 提供了丰富的社交功能，让团队成员可以互动、分享、推荐技能包。
+SkillHub provides rich social features that allow team members to interact, share, and recommend skill packages.
 
-![概念图](/diagrams/social-concept.png)
+![Concept diagram](/diagrams/social-concept.png)
 
-**核心功能**：
+**Core features**:
 
-- **星标（Star）**：收藏喜欢的技能包，方便后续查找
-- **评分（Rating）**：给技能包打分（1-5 星），帮助其他人判断质量
-- **下载统计**：记录下载次数，展示热门技能包
-- **通知系统**：及时接收审核结果、评论回复等通知
+- **Stars**: Bookmark favorite skill packages for easy reference later
+- **Ratings**: Rate skill packages (1–5 stars) to help others gauge quality
+- **Download statistics**: Track download counts to highlight popular skill packages
+- **Notification system**: Receive timely notifications for review results, comments, and more
 
-**社交数据**：
+**Social metrics**:
 
-| 指标 | 说明 |
+| Metric | Description |
 |------|------|
-| **星标数** | 有多少人收藏了这个技能包 |
-| **平均评分** | 所有用户评分的平均值 |
-| **下载量** | 累计下载次数 |
-| **活跃度** | 最近更新时间、发布频率 |
+| **Star count** | How many people have bookmarked this skill package |
+| **Average rating** | The average of all user ratings |
+| **Download count** | Cumulative number of downloads |
+| **Activity** | Time of last update, publish frequency |
 
-## 使用场景
+## Use Cases
 
-**场景一：收藏常用技能包**
+**Scenario 1: Bookmark a useful skill package**
 
-开发者发现一个好用的技能包，点击星标收藏。
+A developer discovers a useful skill package and clicks the star button to bookmark it.
 
-![操作截图](/screenshots/skill-detail-star.png)
+![Screenshot](/screenshots/skill-detail-star.png)
 
-**场景二：评分推荐**
+**Scenario 2: Rate and recommend**
 
-使用技能包后，给出评分和评价，帮助团队其他成员。
+After using a skill package, leave a rating to help other team members.
 
-**场景三：查看通知**
+**Scenario 3: View notifications**
 
-收到审核通过的通知，或者有人评论了你的技能包。
+Receive a notification that a review was approved, or that someone commented on your skill package.
 
-![操作截图](/screenshots/notifications.png)
+![Screenshot](/screenshots/notifications.png)
 
-**场景四：浏览热门**
+**Scenario 4: Browse popular packages**
 
-查看星标数最多、评分最高的技能包，学习最佳实践。
+View the skill packages with the most stars and highest ratings to learn best practices.
 
-## 使用步骤
+## Usage Steps
 
-**星标技能包**：
+**Star a skill package**:
 
-1. 访问技能包详情页
-2. 点击「Star」按钮
-3. 技能包会出现在「我的收藏」列表中
-4. 再次点击可以取消星标
+1. Go to the skill package detail page
+2. Click the "Star" button
+3. The skill package will appear in your "My Stars" list
+4. Click again to remove the star
 
-**评分技能包**：
+**Rate a skill package**:
 
-1. 访问技能包详情页
-2. 点击星星图标选择评分（1-5 星）
-3. 评分会立即生效，影响技能包的平均评分
-4. 可以随时修改评分
+1. Go to the skill package detail page
+2. Click the star icons to select a rating (1–5 stars)
+3. The rating takes effect immediately and influences the skill package's average rating
+4. You can change your rating at any time
 
-**查看通知**：
+**View notifications**:
 
-1. 点击顶部导航栏的通知图标
-2. 查看未读通知列表
-3. 点击通知跳转到相关页面
-4. 标记为已读或全部已读
+1. Click the notification icon in the top navigation bar
+2. View the list of unread notifications
+3. Click a notification to navigate to the related page
+4. Mark individual notifications as read or mark all as read
 
-**查看我的收藏**：
+**View my stars**:
 
-1. 访问 `/dashboard/stars`
-2. 查看所有星标的技能包
-3. 按星标时间、更新时间排序
-4. 快速访问常用技能包
+1. Go to `/dashboard/stars`
+2. View all starred skill packages
+3. Sort by star date or update time
+4. Quickly access frequently used skill packages
 
-## API 接口
+## API Reference
 
-**星标技能包**：
+**Star a skill package**:
 ```bash
 PUT /api/v1/skills/{skillId}/star
 ```
 
-**取消星标**：
+**Remove a star**:
 ```bash
 DELETE /api/v1/skills/{skillId}/star
 ```
 
-**检查星标状态**：
+**Check star status**:
 ```bash
 GET /api/v1/skills/{skillId}/star
 ```
 
-**响应示例**：
+**Response example**:
 ```json
 {
   "starred": true,
@@ -99,7 +99,7 @@ GET /api/v1/skills/{skillId}/star
 }
 ```
 
-**评分技能包**：
+**Rate a skill package**:
 ```bash
 PUT /api/v1/skills/{skillId}/rating
 Content-Type: application/json
@@ -109,23 +109,23 @@ Content-Type: application/json
 }
 ```
 
-**参数说明**：
-| 参数 | 类型 | 说明 |
+**Parameter description**:
+| Parameter | Type | Description |
 |------|------|------|
-| skillId | string | 技能包 ID（路径参数） |
-| score | number | 评分（1-5，必需） |
+| skillId | string | Skill package ID (path parameter) |
+| score | number | Rating (1–5, required) |
 
-**获取我的星标**：
+**Get my stars**:
 ```bash
 GET /api/v1/me/stars?page=0&size=20
 ```
 
-**获取我的评分**：
+**Get my rating**:
 ```bash
 GET /api/v1/skills/{skillId}/rating
 ```
 
-**响应示例**：
+**Response example**:
 ```json
 {
   "score": 5,
@@ -133,11 +133,11 @@ GET /api/v1/skills/{skillId}/rating
 }
 ```
 
-## 注意事项
+## Notes
 
-> **评分规则**：每个用户对每个技能包只能评分一次，可以修改评分但不能删除。
+> **Rating rules**: Each user can rate each skill package only once. Ratings can be changed but not deleted.
 
-- **星标数量**：技能包的星标数会显示在搜索结果和详情页
-- **平均评分**：技能包的平均评分会影响搜索排序
-- **通知设置**：用户可以在设置中关闭某些类型的通知
-- **下载统计**：每次下载都会增加下载计数，用于热门排序
+- **Star count**: The star count for a skill package is shown in search results and on the detail page
+- **Average rating**: A skill package's average rating influences search ranking
+- **Notification settings**: Users can disable certain types of notifications in settings
+- **Download statistics**: Each download increments the download counter, which is used for popularity ranking

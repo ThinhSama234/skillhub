@@ -1,165 +1,165 @@
 ---
-name: 文件预览语法高亮影响分析
-description: 代码影响范围、API 变更、数据库变更、风险评估
+name: File Preview Syntax Highlighting Impact Analysis
+description: Code impact scope, API changes, database changes, risk assessment
 type: impact-analysis
 ---
 
-# 影响分析：文件预览语法高亮
+# Impact Analysis: File Preview Syntax Highlighting
 
-## 1. 代码影响矩阵
+## 1. Code Impact Matrix
 
-| 模块 | 文件/类 | 变更类型 | 影响级别 | 备注 |
+| Module | File/Class | Change Type | Impact Level | Notes |
 |------|---------|---------|---------|------|
-| **前端 - 组件** | `web/src/features/skill/code-renderer.tsx` | 新增 | 低 | 新增组件，无依赖冲突 |
-| **前端 - 工具** | `web/src/features/skill/file-type-utils.ts` | 修改 | 低 | 新增函数，不修改现有函数 |
-| **前端 - 弹窗** | `web/src/features/skill/file-preview-dialog.tsx` | 修改 | 中 | 修改渲染逻辑，需回归测试 |
-| **前端 - 样式** | `web/src/features/skill/markdown-renderer.tsx` | 只读 | 无 | 复用样式，不修改 |
-| **前端 - 依赖** | `web/package.json` | 无变更 | 无 | 复用现有 highlight.js |
-| **后端 - API** | 无 | 无变更 | 无 | 复用现有文件读取 API |
-| **后端 - 缓存** | 待定 | 后续新增 | 低 | 后续优化阶段实现 |
-| **后端 - 限流** | 待定 | 后续新增 | 低 | 后续优化阶段实现 |
+| **Frontend - Components** | `web/src/features/skill/code-renderer.tsx` | New | Low | New component, no dependency conflicts |
+| **Frontend - Utilities** | `web/src/features/skill/file-type-utils.ts` | Modified | Low | New function added, existing functions unchanged |
+| **Frontend - Dialog** | `web/src/features/skill/file-preview-dialog.tsx` | Modified | Medium | Render logic modified, regression testing required |
+| **Frontend - Styles** | `web/src/features/skill/markdown-renderer.tsx` | Read-only | None | Style reuse, no modification |
+| **Frontend - Dependencies** | `web/package.json` | No change | None | Reuse existing highlight.js |
+| **Backend - API** | None | No change | None | Reuse existing file read API |
+| **Backend - Cache** | TBD | Added later | Low | Implemented in future optimization phase |
+| **Backend - Rate Limiting** | TBD | Added later | Low | Implemented in future optimization phase |
 
-## 2. API 影响
+## 2. API Impact
 
-### 新增端点
-无
+### New Endpoints
+None
 
-### 修改端点
-无（复用现有 API）
+### Modified Endpoints
+None (reuse existing API)
 
-### 现有端点依赖
-| 端点 | 变更 | 是否破坏性 | 备注 |
+### Existing Endpoint Dependencies
+| Endpoint | Change | Breaking? | Notes |
 |------|------|-----------|------|
-| `GET /api/v1/reviews/{id}/file?path={filePath}` | 无变更 | 否 | 前端根据响应内容渲染 |
-| `GET /api/v1/skills/{namespace}/{slug}/versions/{version}/file?path={filePath}` | 无变更 | 否 | 前端根据响应内容渲染 |
+| `GET /api/v1/reviews/{id}/file?path={filePath}` | No change | No | Frontend renders based on response content |
+| `GET /api/v1/skills/{namespace}/{slug}/versions/{version}/file?path={filePath}` | No change | No | Frontend renders based on response content |
 
-## 3. 数据库影响
+## 3. Database Impact
 
-### 模式变更
-无
+### Schema Changes
+None
 
-### 数据迁移
-无
+### Data Migration
+None
 
-## 4. 前端影响
+## 4. Frontend Impact
 
-### 受影响页面
-| 页面 | 影响描述 | 测试重点 |
+### Affected Pages
+| Page | Impact Description | Test Focus |
 |------|---------|---------|
-| 技能详情页 | 文件预览弹窗增强 | 各种文件类型渲染测试 |
-| 审核详情页 | 文件预览弹窗增强 | 各种文件类型渲染测试 |
+| Skill detail page | File preview dialog enhanced | Test rendering for various file types |
+| Review detail page | File preview dialog enhanced | Test rendering for various file types |
 
-### i18n 变更
-无新增翻译键（复用现有错误提示）
+### i18n Changes
+No new translation keys (reuse existing error messages)
 
-### 路由变更
-无
+### Routing Changes
+None
 
-## 5. 风险评估
+## 5. Risk Assessment
 
-| 风险 ID | 描述 | 概率 | 影响 | 缓解措施 |
+| Risk ID | Description | Probability | Impact | Mitigation |
 |---------|------|------|------|---------|
-| R-001 | 大文件语法高亮导致浏览器卡顿 | 中 | 高 | 设置 500KB 阈值，超过则不高亮 |
-| R-002 | highlight.js 包体积过大 | 低 | 中 | 按需导入语言包，初始只加载核心 |
-| R-003 | 语法高亮样式与 Markdown 不一致 | 低 | 中 | 复用相同的 CSS 类名和样式 |
-| R-004 | 某些语言无法识别 | 低 | 低 | 降级到纯文本显示，不报错 |
-| R-005 | 渲染失败导致页面崩溃 | 低 | 高 | 使用 Error Boundary 捕获错误 |
-| R-006 | 主题切换时样式闪烁 | 低 | 低 | 使用 CSS 变量，确保平滑过渡 |
-| R-007 | 后端文件读取性能下降 | 中 | 中 | 后续实现缓存和限流（不在本次范围） |
-| R-008 | XSS 安全风险 | 低 | 高 | 确保 highlight.js 输出已转义 |
+| R-001 | Large file syntax highlighting causes browser lag | Medium | High | Set 500KB threshold; do not highlight files above this size |
+| R-002 | highlight.js bundle size too large | Low | Medium | Import language packages on demand; only load core on initial load |
+| R-003 | Syntax highlighting style inconsistent with Markdown | Low | Medium | Reuse the same CSS class names and styles |
+| R-004 | Certain languages cannot be recognized | Low | Low | Fall back to plain text display, no error |
+| R-005 | Rendering failure causes page crash | Low | High | Use Error Boundary to catch errors |
+| R-006 | Style flicker during theme switching | Low | Low | Use CSS variables to ensure smooth transitions |
+| R-007 | Backend file read performance degrades | Medium | Medium | Implement Redis caching and rate limiting later (not in this release) |
+| R-008 | XSS security risk | Low | High | Ensure highlight.js output is escaped |
 
-### 风险详细说明
+### Detailed Risk Descriptions
 
-#### R-001: 大文件语法高亮导致浏览器卡顿
-- **触发条件**：用户尝试预览 > 500KB 的代码文件
-- **影响范围**：前端渲染性能，用户体验
-- **缓解措施**：
-  1. 设置 500KB 阈值，超过则显示纯文本
-  2. 增加 loading 状态提示用户
-  3. 提供"取消加载"按钮（后续优化）
-- **监控指标**：前端渲染时间（通过 RUM）
+#### R-001: Large File Syntax Highlighting Causes Browser Lag
+- **Trigger condition**: User attempts to preview a code file > 500KB
+- **Impact scope**: Frontend render performance, user experience
+- **Mitigations**:
+  1. Set 500KB threshold; display plain text above this size
+  2. Add loading state to notify the user
+  3. Provide a "Cancel loading" button (future optimization)
+- **Monitoring metric**: Frontend render time (via RUM)
 
-#### R-005: 渲染失败导致页面崩溃
-- **触发条件**：highlight.js 渲染异常、内存不足
-- **影响范围**：文件预览功能不可用
-- **缓解措施**：
-  1. 使用 React Error Boundary 捕获渲染错误
-  2. 降级到纯文本显示
-  3. 记录错误日志，便于排查
-- **监控指标**：错误率（通过前端错误监控）
+#### R-005: Rendering Failure Causes Page Crash
+- **Trigger condition**: highlight.js rendering exception, insufficient memory
+- **Impact scope**: File preview feature unavailable
+- **Mitigations**:
+  1. Use React Error Boundary to catch rendering errors
+  2. Fall back to plain text display
+  3. Log errors for troubleshooting
+- **Monitoring metric**: Error rate (via frontend error monitoring)
 
-#### R-007: 后端文件读取性能下降
-- **触发条件**：大量用户同时预览文件
-- **影响范围**：后端 API 响应时间增加，云存储 API 配额消耗
-- **缓解措施**：
-  1. 后续实现 Redis 缓存（缓存命中率 > 60%）
-  2. 后续实现限流（认证用户 60 次/分钟，匿名 20 次/分钟）
-  3. 监控云存储 API 调用次数
-- **监控指标**：API 响应时间、缓存命中率、限流触发次数
+#### R-007: Backend File Read Performance Degrades
+- **Trigger condition**: Large number of users previewing files simultaneously
+- **Impact scope**: Backend API response time increases, cloud storage API quota consumed
+- **Mitigations**:
+  1. Implement Redis caching later (cache hit rate > 60%)
+  2. Implement rate limiting later (authenticated users: 60 req/min, anonymous: 20 req/min)
+  3. Monitor cloud storage API call count
+- **Monitoring metrics**: API response time, cache hit rate, rate limit trigger count
 
-#### R-008: XSS 安全风险
-- **触发条件**：恶意用户上传包含 XSS 代码的文件
-- **影响范围**：安全漏洞，可能导致用户信息泄露
-- **缓解措施**：
-  1. 确保 highlight.js 输出已转义（highlight.js 默认转义）
-  2. 代码审查确认 `dangerouslySetInnerHTML` 使用安全
-  3. 不允许用户自定义语法高亮规则
-- **监控指标**：安全审查通过
+#### R-008: XSS Security Risk
+- **Trigger condition**: Malicious user uploads a file containing XSS code
+- **Impact scope**: Security vulnerability; may lead to user information disclosure
+- **Mitigations**:
+  1. Ensure highlight.js output is escaped (highlight.js escapes by default)
+  2. Confirm safe use of `dangerouslySetInnerHTML` in code review
+  3. Do not allow users to customize syntax highlighting rules
+- **Monitoring metric**: Security review passed
 
-## 6. 测试影响
+## 6. Test Impact
 
-### 新增测试
-| 测试类 | 覆盖用例 | 描述 |
+### New Tests
+| Test Class | Covered Cases | Description |
 |--------|---------|------|
-| `CodeRenderer.test.tsx` | AC-P-001 ~ AC-P-005 | CodeRenderer 组件单元测试 |
-| `file-type-utils.test.ts` | AC-P-006 | 语言映射函数测试 |
-| `file-preview-dialog.test.tsx` | AC-P-007 ~ AC-P-010 | 文件预览弹窗集成测试 |
+| `CodeRenderer.test.tsx` | AC-P-001 ~ AC-P-005 | CodeRenderer component unit tests |
+| `file-type-utils.test.ts` | AC-P-006 | Language mapping function tests |
+| `file-preview-dialog.test.tsx` | AC-P-007 ~ AC-P-010 | File preview dialog integration tests |
 
-### 修改测试
-| 测试类 | 修改原因 | 描述 |
+### Modified Tests
+| Test Class | Reason for Modification | Description |
 |--------|---------|------|
-| `file-preview-dialog.test.tsx` | 新增渲染逻辑 | 更新快照，增加语法高亮测试用例 |
+| `file-preview-dialog.test.tsx` | New render logic | Update snapshots, add syntax highlighting test cases |
 
-## 7. 部署影响
+## 7. Deployment Impact
 
-### 前端部署
-- **构建时间**：预计增加 10-20 秒（新增组件编译）
-- **包体积**：预计增加 50-80KB（gzipped，按需导入语言包）
-- **缓存失效**：文件预览相关页面缓存失效，需重新加载
+### Frontend Deployment
+- **Build time**: Expected to increase by 10-20 seconds (new component compilation)
+- **Bundle size**: Expected to increase by 50-80KB (gzipped, language packages imported on demand)
+- **Cache invalidation**: File preview-related page caches will be invalidated and need to be reloaded
 
-### 后端部署
-- **本次无变更**
-- **后续优化**：需要部署缓存和限流逻辑（独立任务）
+### Backend Deployment
+- **No changes in this release**
+- **Future optimization**: Cache and rate limiting logic will need to be deployed (separate task)
 
-### 数据库部署
-无
+### Database Deployment
+None
 
-## 8. 回滚计划
+## 8. Rollback Plan
 
-### 回滚触发条件
-- 前端渲染错误率 > 5%
-- 用户投诉语法高亮功能异常 > 10 次/天
-- 性能指标严重下降（P95 响应时间 > 3s）
+### Rollback Trigger Conditions
+- Frontend rendering error rate > 5%
+- User complaints about syntax highlighting feature anomalies > 10 per day
+- Performance metrics severely degraded (P95 response time > 3s)
 
-### 回滚步骤
-1. **前端回滚**：
-   - 回滚到上一个稳定版本（git revert）
-   - 重新构建和部署前端
-   - 验证文件预览功能恢复正常（显示纯文本）
-2. **监控验证**：
-   - 确认错误率恢复正常
-   - 确认性能指标恢复正常
-3. **问题排查**：
-   - 分析错误日志，定位问题根因
-   - 修复问题后重新部署
+### Rollback Steps
+1. **Frontend rollback**:
+   - Roll back to the previous stable version (git revert)
+   - Rebuild and redeploy the frontend
+   - Verify that file preview functionality is restored (displays plain text)
+2. **Monitoring verification**:
+   - Confirm error rate returns to normal
+   - Confirm performance metrics return to normal
+3. **Root cause analysis**:
+   - Analyze error logs to identify the root cause
+   - Fix the issue and redeploy
 
-### 回滚影响
-- 用户将无法使用语法高亮功能，回退到纯文本显示
-- 不影响文件下载和其他核心功能
+### Rollback Impact
+- Users will not be able to use syntax highlighting; reverts to plain text display
+- File download and other core features are not affected
 
 ---
 
-## 变更日志
-| 日期 | 章节 | 变更 | 原因 | 触发者 |
+## Changelog
+| Date | Section | Change | Reason | Author |
 |------|------|------|------|--------|
-| 2026-03-22 | 初始版本 | 创建影响分析文档 | 需求澄清完成 | requirements-clarity |
+| 2026-03-22 | Initial version | Created impact analysis document | Requirements clarification complete | requirements-clarity |

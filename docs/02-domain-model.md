@@ -1,44 +1,44 @@
-# skillhub 领域模型与数据模型
+# skillhub Domain Model & Data Model
 
-## 0. 用户标识约束
+## 0. User Identity Constraints
 
-- 用户身份主键全链路统一为 `string`。
-- 本约束覆盖 `user_id`、`owner_id`、`created_by`、`updated_by`、`published_by`、`reviewed_by`、`actor_user_id` 及所有等价语义字段。
-- 历史文档里写成 `bigint` / `BIGINT` 的用户关联字段均应按字符串重新解释；这些旧类型描述不再作为实现依据。
-- 若未来数据库为了索引或存储效率引入内部 surrogate key，也只能作为内部实现细节，不能替代字符串 `userId` 成为认证、授权、审计和 API 契约的主键。
+- The user identity primary key is uniformly `string` throughout the entire system.
+- This constraint covers `user_id`, `owner_id`, `created_by`, `updated_by`, `published_by`, `reviewed_by`, `actor_user_id`, and all equivalent semantic fields.
+- Any user-related fields written as `bigint` / `BIGINT` in historical documents should be reinterpreted as strings; those old type descriptions no longer serve as implementation references.
+- If the database introduces an internal surrogate key in the future for indexing or storage efficiency, it may only be used as an internal implementation detail and cannot replace the string `userId` as the primary key for authentication, authorization, audit, and API contracts.
 
-## 3.1 核心实体
+## 3.1 Core Entities
 
 ### namespace
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
-| id | bigint | 主键 |
-| slug | varchar(64) | URL 友好标识 |
-| display_name | varchar(128) | 展示名 |
+| id | bigint | Primary key |
+| slug | varchar(64) | URL-friendly identifier |
+| display_name | varchar(128) | Display name |
 | type | enum | `GLOBAL` / `TEAM` |
-| description | text | 描述 |
-| avatar_url | varchar(512) | 头像 |
+| description | text | Description |
+| avatar_url | varchar(512) | Avatar |
 | status | enum | `ACTIVE` / `FROZEN` / `ARCHIVED` |
-| created_by | varchar(128) | 创建人 |
+| created_by | varchar(128) | Creator |
 | created_at | datetime | |
 | updated_at | datetime | |
 
-- `GLOBAL` 类型全局唯一（只有一个 `@global`），由平台管理员管理
-- `TEAM` 类型对应部门/团队，可创建多个
-- 技能完整寻址：`@{namespace_slug}/{skill_slug}`
-- slug 唯一约束：`slug`
-- slug 格式校验：`[a-z0-9]([a-z0-9-]*[a-z0-9])?`，长度 2-64，且不得包含连续两个以上的连字符 `--`（为兼容层坐标映射保留）
-- slug 保留词列表（用户创建 namespace 时不可使用）：`admin`, `api`, `dashboard`, `search`, `auth`, `me`, `global`, `system`, `static`, `assets`, `health`
-- 系统内置 namespace（`@global`）在数据库初始化时由 Flyway 脚本预置，绕过 slug 校验规则。保留词校验仅作用于用户创建 namespace 的接口
-- 状态语义：
-  - `ACTIVE`：正常使用
-  - `FROZEN`：冻结，只读不可发布新版本，已有技能仍可浏览/下载
-  - `ARCHIVED`：归档，对外不可见
+- `GLOBAL` type is globally unique (there is only one `@global`), managed by platform administrators
+- `TEAM` type corresponds to departments/teams; multiple can be created
+- Full skill address: `@{namespace_slug}/{skill_slug}`
+- Unique constraint: `slug`
+- Slug format validation: `[a-z0-9]([a-z0-9-]*[a-z0-9])?`, length 2–64, and must not contain two or more consecutive hyphens `--` (reserved for compatibility layer coordinate mapping)
+- Slug reserved word list (cannot be used when users create a namespace): `admin`, `api`, `dashboard`, `search`, `auth`, `me`, `global`, `system`, `static`, `assets`, `health`
+- The system built-in namespace (`@global`) is pre-populated by a Flyway script during database initialization, bypassing slug validation rules. Reserved word validation only applies to the namespace creation endpoint
+- Status semantics:
+  - `ACTIVE`: normal operation
+  - `FROZEN`: frozen, read-only; new versions cannot be published, but existing skills can still be browsed and downloaded
+  - `ARCHIVED`: archived, not visible externally
 
 ### namespace_member
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | namespace_id | bigint | |
@@ -47,98 +47,98 @@
 | created_at | datetime | |
 | updated_at | datetime | |
 
-- `OWNER`：命名空间创建者，可转让
-- `ADMIN`：可审核该空间内的技能发布、管理成员
-- `MEMBER`：可在该空间内发布技能（提交审核）
-- 唯一约束：`(namespace_id, user_id)`，一个用户在一个空间只有一个角色
+- `OWNER`: namespace creator; can be transferred
+- `ADMIN`: can review skill publications within this namespace and manage members
+- `MEMBER`: can publish skills within this namespace (submit for review)
+- Unique constraint: `(namespace_id, user_id)` — a user has only one role in a given namespace
 
 ### skill
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
-| namespace_id | bigint | 所属命名空间 |
-| slug | varchar(128) | URL 友好标识 |
+| namespace_id | bigint | Owning namespace |
+| slug | varchar(128) | URL-friendly identifier |
 | display_name | varchar(256) | |
 | summary | varchar(512) | |
-| owner_id | varchar(128) | 主要维护人（可转让） |
-| source_skill_id | bigint | 派生来源（团队技能提升到全局时记录原 skill ID），nullable |
+| owner_id | varchar(128) | Primary maintainer (transferable) |
+| source_skill_id | bigint | Derived source (records the original skill ID when a team skill is promoted to global); nullable |
 | visibility | enum | `PUBLIC` / `NAMESPACE_ONLY` / `PRIVATE` |
 | status | enum | `ACTIVE` / `ARCHIVED` |
-| latest_version_id | bigint | latest published pointer，仅指向最新 `PUBLISHED` 版本；若不存在已发布版本则可为 `null` |
+| latest_version_id | bigint | Latest published pointer; points only to the most recent `PUBLISHED` version; may be `null` if no published version exists |
 | download_count | bigint | |
 | star_count | int | |
-| rating_avg | decimal(3,2) | 平均评分 |
-| rating_count | int | 评分人数 |
+| rating_avg | decimal(3,2) | Average rating |
+| rating_count | int | Number of raters |
 | created_by | varchar(128) | |
 | created_at | datetime | |
 | updated_by | varchar(128) | |
 | updated_at | datetime | |
 
-- 唯一约束：`(namespace_id, slug)`
-- `status` 表示 skill 容器生命周期，不再承载“隐藏”语义。隐藏是独立的治理覆盖层，由 `hidden` / `hidden_at` / `hidden_by` 表达
-- 当前代码下的实际可见性判定以 `VisibilityChecker` 为准，规则如下：
-  - 若 `hidden=true`：仅 skill owner 或该 namespace 的 `ADMIN` / `OWNER` 可读
-  - 若 `latest_version_id is null`：仅 skill owner 可读；即使 `visibility=PUBLIC` 也不会对外公开
-  - `PUBLIC`：任意人可读 skill 容器与已发布版本
-  - `NAMESPACE_ONLY`：该 namespace 任意成员可读（`MEMBER` / `ADMIN` / `OWNER`）
-  - `PRIVATE`：仅 skill owner 或该 namespace 的 `ADMIN` / `OWNER` 可读，普通 `MEMBER` 不可读
-- `owner_id` 语义为"主要维护人"，可转让。权限主轴是 namespace role，不是 owner：
-  - namespace ADMIN 对空间内所有 skill 有完整管理权（归档、版本管理、提升到全局），不受 owner 限制
-  - owner 作为 MEMBER 时可管理自己创建的 skill（提交审核、编辑草稿）
-  - owner 离职/换组后，namespace ADMIN 仍能完整管理所有技能
-- `rating_avg` / `rating_count` 冗余字段，避免每次查询聚合
-- `slug`：面向用户的 URL 标识，来自 SKILL.md 的 `name` 字段，首次发布后不可变更。slug 格式校验规则与 namespace slug 相同：`[a-z0-9]([a-z0-9-]*[a-z0-9])?`，同样适用保留词限制，且不得包含连续两个以上的连字符 `--`（为兼容层坐标映射保留）。全局空间（`@global`）下的 skill slug 额外禁止包含 `--`，以避免与兼容层 canonical slug 产生歧义
-- `source_skill_id`：仅在"团队技能提升到全局"场景下填充，记录原始团队空间的 skill ID，用于追溯来源
-- 提升关系的唯一事实来源是 `promotion_request` 表，UI 查询"是否已提升"通过 `SELECT ... FROM promotion_request WHERE source_skill_id=? AND status='APPROVED'` 判定
+- Unique constraint: `(namespace_id, slug)`
+- `status` represents the skill container lifecycle and no longer carries "hidden" semantics. Hidden is an independent governance override layer, expressed by `hidden` / `hidden_at` / `hidden_by`
+- Actual visibility evaluation in the current codebase is governed by `VisibilityChecker`, with the following rules:
+  - If `hidden=true`: only the skill owner or the namespace `ADMIN` / `OWNER` can read
+  - If `latest_version_id is null`: only the skill owner can read; even if `visibility=PUBLIC`, it will not be exposed publicly
+  - `PUBLIC`: any person can read the skill container and published versions
+  - `NAMESPACE_ONLY`: any member of the namespace can read (`MEMBER` / `ADMIN` / `OWNER`)
+  - `PRIVATE`: only the skill owner or the namespace `ADMIN` / `OWNER` can read; ordinary `MEMBER` cannot read
+- `owner_id` semantics represent the "primary maintainer"; it can be transferred. The permission axis is the namespace role, not the owner:
+  - Namespace ADMIN has full management rights over all skills within the namespace (archiving, version management, promotion to global) regardless of the owner
+  - When the owner is a MEMBER, they can manage only their own created skills (submit for review, edit drafts)
+  - After an owner leaves or changes teams, the namespace ADMIN can still fully manage all skills
+- `rating_avg` / `rating_count` are denormalized fields to avoid aggregate queries on every lookup
+- `slug`: user-facing URL identifier, derived from the `name` field of SKILL.md; immutable after the first publication. Slug format validation follows the same rules as namespace slug: `[a-z0-9]([a-z0-9-]*[a-z0-9])?`, the same reserved word restrictions apply, and it must not contain two or more consecutive hyphens `--` (reserved for compatibility layer coordinate mapping). Under the global namespace (`@global`), skill slugs additionally must not contain `--` to avoid ambiguity with compatibility layer canonical slugs
+- `source_skill_id`: populated only in the "team skill promoted to global" scenario; records the original team namespace skill ID for traceability
+- The unique source of truth for promotion relationships is the `promotion_request` table; UI queries of "whether promoted" are determined via `SELECT ... FROM promotion_request WHERE source_skill_id=? AND status='APPROVED'`
 
 ### skill_version
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | skill_id | bigint | |
 | version | varchar(32) | semver |
-| version_sort | bigint | 排序用数值 |
+| version_sort | bigint | Numeric value for sorting |
 | changelog | text | |
-| manifest_json | json | 文件清单 |
-| parsed_metadata_json | json | SKILL.md frontmatter 解析结果 |
+| manifest_json | json | File manifest |
+| parsed_metadata_json | json | SKILL.md frontmatter parse result |
 | status | enum | `DRAFT` / `PENDING_REVIEW` / `PUBLISHED` / `REJECTED` / `YANKED` |
-| reject_reason | varchar(512) | 拒绝原因 |
+| reject_reason | varchar(512) | Rejection reason |
 | published_by | varchar(128) | |
 | published_at | datetime | |
 | created_at | datetime | |
 
-- `status` 表示 version 发布生命周期，和 skill 容器状态、review task 状态分离
-- 当前代码下的实际迁移约束：
-  - 普通用户首次上传/重传新版本后，版本直接进入 `PENDING_REVIEW`
-  - `SUPER_ADMIN` 直发时可直接进入 `PUBLISHED`
-  - 审核通过：`PENDING_REVIEW → PUBLISHED`
-  - 审核拒绝：`PENDING_REVIEW → REJECTED`
-  - 撤回审核：`PENDING_REVIEW → DRAFT`
-  - 已发布撤回：`PUBLISHED → YANKED`
-- 唯一约束：`(skill_id, version)` 防止重复发布
-- `YANKED` 状态：已发布后撤回
-- 当前代码下的实际读权限补充：
-  - 普通详情 / 下载 / resolve / tag / 文件读取，只接受 `PUBLISHED`
-  - owner 可通过常规版本详情预览自己的 `PENDING_REVIEW` 版本
-  - owner / namespace `ADMIN` / `OWNER` 在版本列表中可看到全部五种状态：`PUBLISHED / PENDING_REVIEW / DRAFT / REJECTED / YANKED`
-  - 但常规版本详情接口并不会放行 `DRAFT / REJECTED / YANKED`
-  - 审核详情页走独立 review 读路径，可查看待审版本及完整版本快照
+- `status` represents the version publication lifecycle and is separate from the skill container status and review task status
+- Actual transition constraints in the current codebase:
+  - After an ordinary user uploads or re-uploads a new version, the version directly enters `PENDING_REVIEW`
+  - When a `SUPER_ADMIN` publishes directly, the version can go straight to `PUBLISHED`
+  - Review approved: `PENDING_REVIEW → PUBLISHED`
+  - Review rejected: `PENDING_REVIEW → REJECTED`
+  - Withdraw review: `PENDING_REVIEW → DRAFT`
+  - Retract published: `PUBLISHED → YANKED`
+- Unique constraint: `(skill_id, version)` to prevent duplicate publishing
+- `YANKED` status: retracted after being published
+- Actual read permission supplements in the current codebase:
+  - Ordinary detail / download / resolve / tag / file access only accepts `PUBLISHED`
+  - The owner can preview their own `PENDING_REVIEW` version through the standard version detail endpoint
+  - The owner / namespace `ADMIN` / `OWNER` can see all five statuses in the version list: `PUBLISHED / PENDING_REVIEW / DRAFT / REJECTED / YANKED`
+  - However, the standard version detail endpoint does not allow `DRAFT / REJECTED / YANKED`
+  - The review detail page uses an independent review read path and can view pending versions and complete version snapshots
 
-版本号不可变性规则：
+Version immutability rules:
 
-| 版本状态 | 版本号处理 |
+| Version Status | Version Number Handling |
 |---------|-----------|
-| DRAFT | 可删除该版本记录，重新使用同版本号 |
-| PENDING_REVIEW | 可撤回到 DRAFT |
-| REJECTED | 可删除该版本记录，重新使用同版本号 |
-| PUBLISHED | 版本号永久占用，不可复用 |
-| YANKED | 版本号永久占用，不可复用，版本列表中显示但标记为不可下载 |
+| DRAFT | The version record can be deleted; the same version number can be reused |
+| PENDING_REVIEW | Can be withdrawn back to DRAFT |
+| REJECTED | The version record can be deleted; the same version number can be reused |
+| PUBLISHED | The version number is permanently occupied and cannot be reused |
+| YANKED | The version number is permanently occupied and cannot be reused; appears in the version list but marked as not downloadable |
 
 ### skill_file
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | skill_version_id | bigint | |
@@ -152,7 +152,7 @@
 
 ### skill_tag
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | skill_id | bigint | |
@@ -163,123 +163,123 @@
 | updated_by | varchar(128) | |
 | updated_at | datetime | |
 
-- `latest` 是系统保留标签，只读，自动跟随 `skill.latest_version_id`；其语义严格等价于“最新已发布版本”，不允许 API 手动移动
-- 自定义标签（如 `beta`、`stable-2026q1`）允许人工创建和移动
-- 唯一约束：`(skill_id, tag_name)`
-- `target_version_id` 必须指向 `status = PUBLISHED` 的版本，应用层校验
+- `latest` is a system-reserved tag; it is read-only and automatically tracks `skill.latest_version_id`. Its semantics are strictly equivalent to "the most recently published version" and cannot be moved manually via the API
+- Custom tags (e.g., `beta`, `stable-2026q1`) can be created and moved manually
+- Unique constraint: `(skill_id, tag_name)`
+- `target_version_id` must point to a version with `status = PUBLISHED`; validated at the application layer
 
 ### review_task
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
-| skill_version_id | bigint | 关联的版本 |
-| namespace_id | bigint | 所属空间（决定谁能审核） |
+| skill_version_id | bigint | Associated version |
+| namespace_id | bigint | Owning namespace (determines who can review) |
 | status | enum | `PENDING` / `APPROVED` / `REJECTED` |
-| version | int | 乐观锁版本号，默认 1 |
-| submitted_by | varchar(128) | 提交人 |
-| reviewed_by | varchar(128) | 审核人 |
-| review_comment | text | 审核意见 |
+| version | int | Optimistic lock version number, default 1 |
+| submitted_by | varchar(128) | Submitter |
+| reviewed_by | varchar(128) | Reviewer |
+| review_comment | text | Review comment |
 | submitted_at | datetime | |
 | reviewed_at | datetime | |
 
-- 仅用于普通发布审核，"提升到全局"使用独立的 `promotion_request` 表
-- `version` 字段用于乐观锁，防止多 Pod 并发审核
-- 业务约束：同一 `skill_version_id` 在 `status=PENDING` 时只能存在一条记录，重复提交返回 409 Conflict。撤回时删除 `PENDING` review_task，并将 `skill_version` 回退到 `DRAFT`
-- PostgreSQL 并发约束落地：通过唯一索引 `(skill_version_id)` + 软删除标记实现。`review_task` 表增加 `deleted` 字段（bigint, 默认 0），唯一索引改为 `(skill_version_id, deleted)`。撤回时将 `deleted` 设为 `id`（非零值），新提交时 `deleted=0`，利用唯一索引防止并发重复提交。或者采用更简单的方案：撤回时物理删除 review_task 记录，依赖 `INSERT` 的唯一约束 `(skill_version_id)` 防并发。PostgreSQL 还支持 partial unique index 方案：`CREATE UNIQUE INDEX ON review_task (skill_version_id) WHERE status = 'PENDING'`，更优雅地实现"PENDING 状态唯一"约束
+- Used only for ordinary publish review; "promote to global" uses the separate `promotion_request` table
+- The `version` field is used for optimistic locking to prevent concurrent reviews across multiple Pods
+- Business constraint: for the same `skill_version_id`, only one record may exist with `status=PENDING`; duplicate submissions return 409 Conflict. On withdrawal, the `PENDING` review_task is deleted and `skill_version` is reverted to `DRAFT`
+- PostgreSQL concurrency constraint implementation: achieved via a unique index on `(skill_version_id)` + a soft-delete marker. Add a `deleted` field (bigint, default 0) to the `review_task` table; change the unique index to `(skill_version_id, deleted)`. On withdrawal, set `deleted` to `id` (non-zero); new submissions set `deleted=0`, using the unique index to prevent concurrent duplicate submissions. Alternatively, use a simpler approach: physically delete the review_task record on withdrawal and rely on the `INSERT` unique constraint on `(skill_version_id)` to prevent concurrency. PostgreSQL also supports a partial unique index: `CREATE UNIQUE INDEX ON review_task (skill_version_id) WHERE status = 'PENDING'`, which more elegantly enforces the "uniqueness in PENDING status" constraint
 
 ### promotion_request
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
-| source_skill_id | bigint | 来源团队 skill |
-| source_version_id | bigint | 申请提升的版本 |
-| target_namespace_id | bigint | 目标全局 namespace |
-| target_skill_id | bigint | 审批通过后生成的全局 skill ID，nullable |
+| source_skill_id | bigint | Source team skill |
+| source_version_id | bigint | Version being requested for promotion |
+| target_namespace_id | bigint | Target global namespace |
+| target_skill_id | bigint | Global skill ID created after approval; nullable |
 | status | enum | `PENDING` / `APPROVED` / `REJECTED` |
-| version | int | 乐观锁版本号，默认 1 |
-| submitted_by | varchar(128) | 提交人 |
-| reviewed_by | varchar(128) | 审核人 |
-| review_comment | text | 审核意见 |
+| version | int | Optimistic lock version number, default 1 |
+| submitted_by | varchar(128) | Submitter |
+| reviewed_by | varchar(128) | Reviewer |
+| review_comment | text | Review comment |
 | submitted_at | datetime | |
 | reviewed_at | datetime | |
 
-- 完整表达"哪个团队 skill 的哪一版被申请提升到哪个全局空间"
-- 审批通过后填充 `target_skill_id`，指向全局空间新创建的 skill
-- `promotion_request` 是提升关系的唯一事实来源，skill 表不再冗余 `promoted_to_skill_id`
-- 业务约束：同一 `source_version_id` 在 `status=PENDING` 时只能存在一条记录，重复提交返回 409 Conflict
-- PostgreSQL 并发约束落地：与 `review_task` 类似，通过唯一索引防止并发重复提交。推荐使用 partial unique index：`CREATE UNIQUE INDEX ON promotion_request (source_version_id) WHERE status = 'PENDING'`，或增加 `deleted` 字段 + `(source_version_id, deleted)` 唯一约束，或采用物理删除 + `(source_version_id)` 唯一约束方案
+- Fully expresses "which version of which team skill was requested to be promoted to which global namespace"
+- After approval, `target_skill_id` is populated, pointing to the newly created skill in the global namespace
+- `promotion_request` is the unique source of truth for promotion relationships; the skill table no longer denormalizes `promoted_to_skill_id`
+- Business constraint: for the same `source_version_id`, only one record may exist with `status=PENDING`; duplicate submissions return 409 Conflict
+- PostgreSQL concurrency constraint implementation: similar to `review_task`, uses a unique index to prevent concurrent duplicate submissions. Recommended: partial unique index `CREATE UNIQUE INDEX ON promotion_request (source_version_id) WHERE status = 'PENDING'`; or add a `deleted` field + `(source_version_id, deleted)` unique constraint; or use physical delete + `(source_version_id)` unique constraint
 
 ### skill_star
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | skill_id | bigint | |
 | user_id | varchar(128) | |
 | created_at | datetime | |
 
-唯一约束：`(skill_id, user_id)`
+Unique constraint: `(skill_id, user_id)`
 
 ### skill_rating
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | skill_id | bigint | |
 | user_id | varchar(128) | |
-| score | tinyint | 1-5 |
+| score | tinyint | 1–5 |
 | created_at | datetime | |
 | updated_at | datetime | |
 
-唯一约束：`(skill_id, user_id)`，每人每技能一条，可修改
+Unique constraint: `(skill_id, user_id)` — one record per user per skill; can be updated
 
 ### user_account
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | display_name | varchar(128) | |
 | email | varchar(256) | |
 | avatar_url | varchar(512) | |
 | status | enum | `ACTIVE` / `PENDING` / `DISABLED` / `MERGED` |
-| merged_to_user_id | varchar(128) | 合并目标用户 ID，仅 MERGED 状态有值 |
+| merged_to_user_id | varchar(128) | Merge target user ID; only populated in MERGED status |
 | created_at | datetime | |
 | updated_at | datetime | |
 
-- 状态语义：
-  - `ACTIVE`：正常使用
-  - `PENDING`：等待管理员审批（AccessPolicy 返回 PENDING_APPROVAL 时创建）
-  - `DISABLED`：管理员封禁，登录后拒绝所有操作，返回 403
-  - `MERGED`：已合并到其他账号，保留记录不物理删除，登录时自动跳转到合并目标账号
-- 授权层在每次请求时检查用户状态，非 `ACTIVE` 用户拒绝所有写操作
+- Status semantics:
+  - `ACTIVE`: normal operation
+  - `PENDING`: awaiting admin approval (created when AccessPolicy returns PENDING_APPROVAL)
+  - `DISABLED`: banned by admin; login is denied for all operations, returning 403
+  - `MERGED`: merged into another account; the record is retained without physical deletion; login automatically redirects to the merge target account
+- The authorization layer checks user status on every request; non-`ACTIVE` users are denied all write operations
 
 ### identity_binding
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | user_id | varchar(128) | |
-| provider_code | varchar(64) | 如 `github` |
-| subject | varchar(256) | OAuth Provider 返回的唯一用户标识 |
-| login_name | varchar(128) | 如 GitHub login |
-| extra_json | json | 原始扩展字段 |
+| provider_code | varchar(64) | e.g., `github` |
+| subject | varchar(256) | Unique user identifier returned by the OAuth provider |
+| login_name | varchar(128) | e.g., GitHub login |
+| extra_json | json | Raw extension fields |
 | created_at | datetime | |
 | updated_at | datetime | |
 
-- 唯一约束：`(provider_code, subject)`
-- 一期只接入 GitHub OAuth，但表结构支持后续扩展多个 OAuth Provider
+- Unique constraint: `(provider_code, subject)`
+- Phase 1 integrates only GitHub OAuth, but the table structure supports future extension to multiple OAuth providers
 
 ### api_token
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
-| subject_type | varchar(32) | `USER`（一期）/ `SERVICE_ACCOUNT`（预留） |
-| subject_id | varchar(128) | 关联主体 ID（一期等同于 user_id） |
-| user_id | varchar(128) | 兼容字段，一期与 subject_id 相同 |
-| name | varchar(128) | Token 名称（必填），如"CI/CD"、"本地开发" |
+| subject_type | varchar(32) | `USER` (Phase 1) / `SERVICE_ACCOUNT` (reserved) |
+| subject_id | varchar(128) | Associated principal ID (same as user_id in Phase 1) |
+| user_id | varchar(128) | Compatibility field; same as subject_id in Phase 1 |
+| name | varchar(128) | Token name (required), e.g., "CI/CD", "Local Development" |
 | token_prefix | varchar(16) | |
 | token_hash | varchar(64) | |
 | scope_json | json | |
@@ -290,7 +290,7 @@
 
 ### audit_log
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | actor_user_id | varchar(128) | |
@@ -303,120 +303,120 @@
 | detail_json | json | |
 | created_at | datetime | |
 
-## 3.2 RBAC 实体
+## 3.2 RBAC Entities
 
-一期即上线完整 RBAC，平台角色按最小权限拆分，避免所有治理能力压在单一超管角色上。
+The full RBAC system is launched in Phase 1. Platform roles are split by least-privilege to avoid concentrating all governance capabilities in a single super-admin role.
 
-平台角色（一期内置，Flyway 预置）：
+Platform roles (built-in for Phase 1, pre-populated by Flyway):
 
-| 角色 code | 说明 | 典型权限 |
+| Role Code | Description | Typical Permissions |
 |-----------|------|---------|
-| `SUPER_ADMIN` | 平台超管，拥有所有权限 | 全部 |
-| `SKILL_ADMIN` | 技能治理：全局空间审核、提升审核、隐藏/恢复、撤回已发布版本 | `review:approve`, `skill:manage`, `promotion:approve` |
-| `USER_ADMIN` | 用户治理：准入审批、封禁/解封、角色分配（不可分配 SUPER_ADMIN） | `user:manage`, `user:approve` |
-| `AUDITOR` | 审计只读：查看审计日志 | `audit:read` |
+| `SUPER_ADMIN` | Platform super-admin with all permissions | All |
+| `SKILL_ADMIN` | Skill governance: global namespace review, promotion review, hide/restore, retract published versions | `review:approve`, `skill:manage`, `promotion:approve` |
+| `USER_ADMIN` | User governance: access approval, ban/unban, role assignment (cannot assign SUPER_ADMIN) | `user:manage`, `user:approve` |
+| `AUDITOR` | Audit read-only: view audit logs | `audit:read` |
 
-- 命名空间权限仍由 `namespace_member.role`（OWNER / ADMIN / MEMBER）决定，不走 RBAC 表
-- 一个用户可持有多个平台角色（多条 `user_role_binding`）
-- `SUPER_ADMIN` 隐含所有权限，代码中硬判定短路
+- Namespace permissions are still determined by `namespace_member.role` (OWNER / ADMIN / MEMBER) and do not go through the RBAC table
+- A user can hold multiple platform roles (multiple `user_role_binding` records)
+- `SUPER_ADMIN` implicitly has all permissions; code uses a hard short-circuit evaluation
 
 ### role
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | code | varchar(64) | `SUPER_ADMIN` / `SKILL_ADMIN` / `USER_ADMIN` / `AUDITOR` |
-| name | varchar(128) | 展示名 |
+| name | varchar(128) | Display name |
 | description | varchar(512) | |
-| is_system | boolean | 系统内置角色不可删除 |
+| is_system | boolean | System built-in roles cannot be deleted |
 | created_at | datetime | |
 
 ### permission
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
-| code | varchar(128) | 如 `skill:publish`, `review:approve`, `user:manage` |
+| code | varchar(128) | e.g., `skill:publish`, `review:approve`, `user:manage` |
 | name | varchar(128) | |
-| group_code | varchar(64) | 权限分组 |
+| group_code | varchar(64) | Permission group |
 
 ### role_permission
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | role_id | bigint | |
 | permission_id | bigint | |
 
 ### user_role_binding
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
 | user_id | varchar(128) | |
 | role_id | bigint | |
 | created_at | datetime | |
 
-## 3.3 搜索文档表
+## 3.3 Search Document Table
 
 ### skill_search_document
 
-一个 skill 对应一条搜索文档，内容取“最新已发布版本”。实现上可由 `latest_version_id` 作为缓存指针承载，但其语义只能是 latest published pointer。
+One search document per skill; content is taken from the "most recently published version." The implementation may use `latest_version_id` as a cache pointer, but its semantics can only be that of a latest published pointer.
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
-| skill_id | bigint | 唯一，一 skill 一条 |
-| namespace_id | bigint | 用于空间过滤 |
-| owner_id | varchar(128) | 用于 PRIVATE 可见性判定 |
+| skill_id | bigint | Unique; one record per skill |
+| namespace_id | bigint | Used for namespace filtering |
+| owner_id | varchar(128) | Used for PRIVATE visibility evaluation |
 | title | varchar(256) | |
 | summary | varchar(512) | |
 | keywords | varchar(512) | |
-| search_text | text | `displayName`、`slug`、`summary`，以及 frontmatter 中除 `name` / `description` / `version` 外的字段展开结果 |
-| visibility | enum | 冗余，避免搜索时 join |
+| search_text | text | `displayName`, `slug`, `summary`, and the expanded result of frontmatter fields excluding `name` / `description` / `version` |
+| visibility | enum | Denormalized to avoid joins during search |
 | status | enum | |
 | updated_at | datetime | |
 
-PostgreSQL Full-Text Index：在 `skill_search_document` 表增加 `search_vector tsvector` 列，通过触发器或 `GENERATED ALWAYS AS` 自动维护，建立 GIN 索引。
+PostgreSQL Full-Text Index: add a `search_vector tsvector` column to the `skill_search_document` table; automatically maintained via a trigger or `GENERATED ALWAYS AS`, with a GIN index created on it.
 
-## 3.4 幂等记录表
+## 3.4 Idempotency Record Table
 
 ### idempotency_record
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
-| request_id | varchar(64) | 主键，客户端传入的 UUID v4 |
-| resource_type | varchar(64) | 如 `skill_version`, `api_token` |
-| resource_id | bigint | 业务操作产生的资源 ID |
+| request_id | varchar(64) | Primary key; UUID v4 provided by the client |
+| resource_type | varchar(64) | e.g., `skill_version`, `api_token` |
+| resource_id | bigint | Resource ID produced by the business operation |
 | status | enum | `PROCESSING` / `COMPLETED` / `FAILED` |
-| response_status_code | int | 原始响应状态码 |
+| response_status_code | int | Original response status code |
 | created_at | datetime | |
-| expires_at | datetime | 过期时间（默认 24h） |
+| expires_at | datetime | Expiration time (default 24h) |
 
-- 流程：收到请求 → 插入 record（PROCESSING）→ 业务处理 → 更新为 COMPLETED + resource_id → 重复请求时查 record 返回已有结果
-- Redis 做快速去重缓存（SETNX），PostgreSQL 做持久化兜底
-- 定时任务清理过期记录
+- Flow: receive request → insert record (PROCESSING) → execute business logic → update to COMPLETED + resource_id → return existing result on duplicate requests
+- Redis is used as a fast deduplication cache (SETNX); PostgreSQL is used as a persistent fallback
+- A scheduled task cleans up expired records
 
-## 3.5 关键索引设计
+## 3.5 Key Index Design
 
-| 表 | 索引 | 用途 |
+| Table | Index | Purpose |
 |------|------|------|
-| namespace | `(slug)` UNIQUE | 唯一约束 |
-| skill | `(namespace_id, status)` | 命名空间内技能列表 |
-| skill | `(namespace_id, slug)` UNIQUE | 唯一约束 |
-| skill_version | `(skill_id, status)` | 版本列表 |
-| skill_version | `(skill_id, version)` UNIQUE | 唯一约束 |
-| skill_tag | `(skill_id, tag_name)` UNIQUE | 标签唯一约束 |
-| review_task | `(namespace_id, status)` | 审核列表 |
-| review_task | `(submitted_by, status)` | 我的提交 |
-| promotion_request | `(source_skill_id)` | 按来源 skill 查询 |
-| promotion_request | `(status)` | 待审核列表 |
-| idempotency_record | `(expires_at)` | 过期清理 |
-| audit_log | `(created_at)` | 审计查询 |
-| audit_log | `(actor_user_id, created_at)` | 用户操作历史 |
-| skill_star | `(user_id)` | 我的收藏 |
-| skill_star | `(skill_id)` | 技能收藏数 |
-| skill_rating | `(skill_id)` | 评分聚合 |
-| namespace_member | `(namespace_id, user_id)` UNIQUE | 成员唯一约束 |
-| namespace_member | `(user_id)` | 用户所属空间 |
-| identity_binding | `(provider_code, subject)` UNIQUE | 身份查找 |
-| api_token | `(token_hash)` | Token 校验 |
+| namespace | `(slug)` UNIQUE | Unique constraint |
+| skill | `(namespace_id, status)` | Skill list within a namespace |
+| skill | `(namespace_id, slug)` UNIQUE | Unique constraint |
+| skill_version | `(skill_id, status)` | Version list |
+| skill_version | `(skill_id, version)` UNIQUE | Unique constraint |
+| skill_tag | `(skill_id, tag_name)` UNIQUE | Tag unique constraint |
+| review_task | `(namespace_id, status)` | Review list |
+| review_task | `(submitted_by, status)` | My submissions |
+| promotion_request | `(source_skill_id)` | Query by source skill |
+| promotion_request | `(status)` | Pending review list |
+| idempotency_record | `(expires_at)` | Expiration cleanup |
+| audit_log | `(created_at)` | Audit queries |
+| audit_log | `(actor_user_id, created_at)` | User operation history |
+| skill_star | `(user_id)` | My favorites |
+| skill_star | `(skill_id)` | Skill favorite count |
+| skill_rating | `(skill_id)` | Rating aggregation |
+| namespace_member | `(namespace_id, user_id)` UNIQUE | Member unique constraint |
+| namespace_member | `(user_id)` | Namespaces a user belongs to |
+| identity_binding | `(provider_code, subject)` UNIQUE | Identity lookup |
+| api_token | `(token_hash)` | Token validation |

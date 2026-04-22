@@ -1,247 +1,247 @@
-# 技能详情与审核页文件浏览侧边栏 - 产品需求文档 (PRD)
+# Skill Detail and Review Page File Browser Sidebar - Product Requirements Document (PRD)
 
-## 需求说明
+## Requirements Description
 
-### 背景
-- 当前技能详情页 `space/global/skill-writer` 与审核详情区块都提供“概览 / 文件 / 版本”三个 Tab，但文件区域仅展示平铺文件列表，无法在页面内浏览目录层级或直接查看文件内容。
-- 技能详情页已经具备按路径读取单个文件内容的能力，可用于 README 加载；审核详情页目前仅返回 `files`、`documentationPath`、`documentationContent`，还不具备按任意文件路径读取正文的能力。
-- 用户需要在不下载整个 zip 包的前提下，快速查看 skill 包含的目录结构与具体文件内容，提升详情浏览和审核判断效率。
+### Background
+- The current skill detail page `space/global/skill-writer` and the review detail section both provide "Overview / Files / Versions" three tabs, but the files area only shows a flat file list with no ability to browse directory hierarchy or view file contents directly within the page.
+- The skill detail page already has the ability to read individual file content by path, used for README loading; the review detail page currently only returns `files`, `documentationPath`, and `documentationContent`, and does not yet support reading arbitrary file content by path.
+- Users need to quickly browse the directory structure and specific file content of a skill package without downloading the entire zip file, improving the efficiency of browsing details and making review decisions.
 
-### 业务问题
-- 平铺文件列表无法反映目录层级，用户难以理解 skill 包结构。
-- 审核人员在审核页中无法点开任意文件验证实现内容，只能依赖 README 或下载压缩包离线查看。
-- 现有三个 Tab 的主体内容已经承担不同职责，若继续把文件浏览塞入当前“文件”Tab，会使“概览”与“版本”场景下的跨文件查看成本偏高。
+### Business Problem
+- A flat file list cannot reflect directory hierarchy, making it difficult for users to understand the skill package structure.
+- Reviewers cannot open arbitrary files on the review page to verify implementation details; they can only rely on the README or download the archive for offline inspection.
+- The three existing tabs already serve different purposes, and continuing to push file browsing into the current "Files" tab would increase the cost of cross-file viewing in the "Overview" and "Versions" contexts.
 
-### 目标用户
-- 浏览技能详情的普通用户
-- 管理技能的作者 / 命名空间成员
-- 在审核中心查看技能内容的审核人员与管理员
+### Target Users
+- General users browsing skill details
+- Authors / namespace members managing skills
+- Reviewers and administrators viewing skill content in the review center
 
-### 价值主张
-- 用统一的侧边文件浏览体验取代当前平铺文件列表，降低理解 skill 包结构的成本。
-- 在技能详情页和审核页提供一致的文件预览能力，减少下载操作和上下文切换。
-- 保持现有三个 Tab 的主语义不变，同时让用户在任意 Tab 下都能快速查看文件内容。
+### Value Proposition
+- Replace the current flat file list with a unified sidebar file browsing experience, reducing the cost of understanding skill package structure.
+- Provide consistent file preview capability on both the skill detail page and the review page, reducing download operations and context switching.
+- Keep the main semantics of the three existing tabs unchanged, while allowing users to quickly view file content from any tab.
 
-## 功能概述
+## Feature Overview
 
-### 核心功能
-1. 在技能详情页与审核详情页中新增常驻文件浏览侧边栏。
-2. 将现有平铺 `files` 列表重构为目录树，支持文件夹展开 / 合并。
-3. 点击文件节点后，通过弹窗预览文件内容。
-4. 支持 Markdown 文档渲染、常见文本文件源码预览，以及大文件 / 不支持文件类型的不可预览提示。
-5. 对不可预览文件提供下载入口。
-6. 桌面端使用右侧侧边栏布局，移动端将文件浏览区域下沉到主内容区域下方。
+### Core Features
+1. Add a persistent file browser sidebar to both the skill detail page and the review detail page.
+2. Refactor the existing flat `files` list into a directory tree with expandable/collapsible folders.
+3. After clicking a file node, preview file content via a dialog.
+4. Support Markdown document rendering, source code preview for common text files, and a "preview not supported" notice for large files or unsupported file types.
+5. Provide a download entry for files that cannot be previewed.
+6. On desktop, use a right-side sidebar layout; on mobile, move the file browser area below the main content area.
 
-### 本次范围
-- 技能详情页：三个 Tab 下都显示同一份基于当前主版本的文件浏览侧边栏。
-- 审核详情页：三个 Tab 下都显示文件浏览侧边栏，并支持点击任意文件预览。
-- 文件树默认展开第一层目录，其余目录按需展开。
-- 侧边栏需要显示文件类型或文件大小等辅助信息。
-- 点击文件后使用弹窗预览，不切换当前 Tab。
+### Scope of This Release
+- Skill detail page: All three tabs show the same file browser sidebar based on the current main version.
+- Review detail page: All three tabs show the file browser sidebar with support for clicking any file to preview.
+- The file tree defaults to expanding the first level of directories; other directories expand on demand.
+- The sidebar should display auxiliary information such as file type or file size.
+- After clicking a file, use a dialog to preview it without switching the current tab.
 
-### 明确不包含
-- 侧边栏内置文件名搜索 / 路径过滤。
-- 技能详情页中独立切换文件浏览版本。
-- 审核页中的版本维度切换浏览权限设计与交互实现。
-- 图片、音视频、富二进制文件的内联预览。
-- 超大文件截断预览。
+### Explicitly Excluded
+- In-sidebar file name search / path filtering.
+- Independently switching the browsed file version on the skill detail page.
+- Design and implementation of permission boundaries for version-level browsing on the review page.
+- Inline preview of images, audio/video, and rich binary files.
+- Truncated preview of very large files.
 
-### 后续可扩展方向
-- 按版本浏览文件树与文件预览，并结合权限控制设计访问策略。
-- 侧边栏搜索过滤、最近打开文件、选中文件高亮等增强交互。
-- 对 JSON / YAML / TS / JS 等文本文件提供更完整的语法高亮能力。
-- 超大文本文件受控截断预览，基于服务端预览接口返回结构化元数据。
+### Future Extension Directions
+- Browse file trees and file previews by version, with access policies designed around permission controls.
+- Enhanced interactions such as sidebar search filtering, recently opened files, and selected file highlighting.
+- More complete syntax highlighting for text files such as JSON / YAML / TS / JS.
+- Controlled truncated preview of very large text files, based on structured metadata returned by a server-side preview API.
 
-## 详细需求
+## Detailed Requirements
 
-### 用户交互流程
+### User Interaction Flow
 
-#### 技能详情页
-1. 用户进入技能详情页，默认看到“概览 / 文件 / 版本”三个 Tab。
-2. 无论当前停留在哪个 Tab，页面都显示文件浏览侧边栏。
-3. 侧边栏展示基于当前主版本的目录树，第一层目录默认展开。
-4. 用户点击文件夹节点，可展开或收起该目录。
-5. 用户点击文件节点，打开文件预览弹窗。
-6. 若文件是 Markdown，则按文档样式渲染。
-7. 若文件是常见文本文件，则按源码块样式显示。
-8. 若文件为二进制、类型不支持或文件过大，则弹窗展示“不可预览”提示，并提供文件下载入口。
+#### Skill Detail Page
+1. The user enters the skill detail page and sees the three tabs "Overview / Files / Versions" by default.
+2. Regardless of which tab the user is on, the page displays the file browser sidebar.
+3. The sidebar shows a directory tree based on the current main version, with the first level of directories expanded by default.
+4. The user clicks a folder node to expand or collapse that directory.
+5. The user clicks a file node to open the file preview dialog.
+6. If the file is Markdown, it is rendered in document style.
+7. If the file is a common text file, it is displayed in source code block style.
+8. If the file is binary, an unsupported type, or too large, the dialog shows a "preview not supported" notice and provides a file download entry.
 
-#### 审核详情页
-1. 审核人员展开审核详情区块。
-2. 在“概览 / 文件 / 版本”任一 Tab 下，都能看到文件浏览侧边栏。
-3. 审核人员点击任意文件后，打开与技能详情页一致的文件预览弹窗。
-4. 若审核页现有接口无法提供目标文件正文，则需通过新增或扩展接口补齐能力。
+#### Review Detail Page
+1. The reviewer expands the review detail section.
+2. In any of the "Overview / Files / Versions" tabs, the file browser sidebar is visible.
+3. The reviewer clicks any file to open the same file preview dialog as on the skill detail page.
+4. If the review page's existing API cannot provide the target file content, a new or extended API must be added to fill in the capability.
 
-### 页面布局要求
+### Page Layout Requirements
 
-#### 桌面端
-- 主内容区域与文件浏览侧边栏形成双栏布局。
-- 三个 Tab 的主内容保持原有语义：
-  - 概览：README / 文档主体。
-  - 文件：文件树本身可作为主内容补充或说明区域，但不再是唯一的文件入口。
-  - 版本：版本列表与生命周期信息。
-- 文件预览使用独立弹窗，避免改变主内容布局或跳转当前 Tab。
+#### Desktop
+- The main content area and the file browser sidebar form a two-column layout.
+- The main content of the three tabs retains its original semantics:
+  - Overview: README / documentation body.
+  - Files: The file tree itself can serve as a supplementary or explanatory area for the main content, but is no longer the only file entry point.
+  - Versions: Version list and lifecycle information.
+- File preview uses a standalone dialog to avoid changing the main content layout or switching the current tab.
 
-#### 移动端
-- 不保留强制双栏。
-- 文件浏览区域下沉到主内容区域之后，仍在三个 Tab 下可见。
-- 文件预览弹窗优先采用接近全屏的移动端弹层体验。
-- 需避免任何横向滚动作为主要交互方式。
+#### Mobile
+- Do not enforce a two-column layout.
+- The file browser area moves below the main content area, remaining visible in all three tabs.
+- The file preview dialog should prioritize a near-fullscreen mobile drawer experience.
+- Avoid horizontal scrolling as the primary interaction method.
 
-### 文件树行为
-- 输入数据源为现有平铺 `SkillFile[]` 列表，前端负责构建树形节点。
-- 节点类型分为目录节点与文件节点。
-- 目录节点支持展开 / 收起。
-- 文件节点支持点击打开预览弹窗。
-- 侧边栏中显示文件类型或文件大小信息，帮助用户判断文件性质。
-- 第一层目录默认展开；更深层目录默认折叠。
+### File Tree Behavior
+- The input data source is the existing flat `SkillFile[]` list; the frontend is responsible for building tree nodes.
+- Node types are divided into directory nodes and file nodes.
+- Directory nodes support expand/collapse.
+- File nodes support clicking to open the preview dialog.
+- The sidebar displays file type or file size information to help users judge the nature of a file.
+- The first level of directories is expanded by default; deeper directories are collapsed by default.
 
-### 文件预览行为
-- Markdown 文件：复用现有 Markdown 渲染能力。
-- 文本文件：优先以源码 / 纯文本方式渲染，保留可滚动阅读体验。
-- 二进制文件：展示“当前文件类型暂不支持预览”。
-- 超大文件：展示“文件过大，暂不支持预览”，并给出下载入口。
-- 所有不可预览文件都必须提供可触达的下载能力。
-- 预览弹窗需要显示当前文件路径，便于用户确认查看对象。
+### File Preview Behavior
+- Markdown files: Reuse existing Markdown rendering capability.
+- Text files: Preferably rendered as source code / plain text, preserving a scrollable reading experience.
+- Binary files: Show "Preview not supported for this file type."
+- Very large files: Show "File too large to preview," with a download entry.
+- All non-previewable files must provide an accessible download option.
+- The preview dialog must display the current file path so users can confirm what they are viewing.
 
-### 数据与接口需求
+### Data and Interface Requirements
 
-#### 技能详情页
-- 继续复用当前按路径读取文件正文的能力。
-- 需要将当前 README 专用的单文件读取能力抽象成“任意文件读取”查询逻辑，供预览弹窗复用。
+#### Skill Detail Page
+- Continue to reuse the current ability to read file content by path.
+- The current single-file read capability used specifically for README needs to be abstracted into a general "read any file" query logic for use by the preview dialog.
 
-#### 审核详情页
-- 需要补齐按路径读取任意文件正文的能力。
-- 可接受的实现方式：
-  1. 新增审核场景专用文件读取接口。
-  2. 扩展当前 review detail 数据获取链路，增加任意文件按路径读取能力。
-- 目标是让审核页的文件预览能力与技能详情页对齐，而不是仅支持 README。
+#### Review Detail Page
+- The ability to read any file content by path needs to be added.
+- Acceptable implementation approaches:
+  1. Add a new file reading API specific to the review context.
+  2. Extend the current review detail data-fetching pipeline to add the ability to read any file by path.
+- The goal is to align the file preview capability of the review page with that of the skill detail page, not just support the README.
 
-### 开源组件策略
-- 实现前需优先评估成熟开源组件是否能满足文件树或代码预览需求。
-- 评估前提：样式必须能与当前 React + Tailwind + 现有 UI 体系自然融合。
-- 若第三方组件在样式一致性、包体积、移动端适配或维护成本上不满足要求，则回退为轻量自研方案。
-- 当前项目已具备 `react-markdown`、`rehype-highlight` 与现有 Dialog 基础能力，应优先复用已有依赖，避免引入风格冲突较大的重型组件。
+### Open-Source Component Strategy
+- Before implementation, first evaluate whether mature open-source components can meet the file tree or code preview requirements.
+- Evaluation prerequisite: The styles must be able to naturally integrate with the current React + Tailwind + existing UI system.
+- If a third-party component does not meet requirements in style consistency, bundle size, mobile adaptation, or maintenance cost, fall back to a lightweight custom implementation.
+- The current project already has `react-markdown`, `rehype-highlight`, and existing Dialog capabilities; these should be reused first to avoid introducing heavily conflicting heavyweight components.
 
-## 设计决策
+## Design Decisions
 
-### 交互决策
-- 采用“常驻文件导航 + 弹窗预览”模式，而不是切换主内容 Tab 或在侧边栏内直接阅读正文。
-- 理由：
-  - 保持现有三个 Tab 的语义稳定。
-  - 允许用户在“概览”或“版本”上下文中快速查看文件。
-  - 更适合移动端，将阅读行为独立到弹窗层处理。
+### Interaction Decision
+- Adopt a "persistent file navigation + dialog preview" model, rather than switching the main content tab or reading content directly within the sidebar.
+- Rationale:
+  - Maintains the semantic stability of the three existing tabs.
+  - Allows users to quickly view files within the "Overview" or "Versions" context.
+  - Better suited for mobile, handling reading behavior independently in a dialog layer.
 
-### 响应式决策
-- 桌面端为右侧常驻侧边栏。
-- 移动端为主内容下方文件浏览区 + 接近全屏的预览弹层。
-- 需保证 320 / 375 / 414 / 768 / 1024 / 1440 等常见宽度下无异常横向滚动。
+### Responsive Decision
+- Desktop: Persistent right-side sidebar.
+- Mobile: File browser area below main content + near-fullscreen preview drawer.
+- Must ensure no abnormal horizontal scrolling at common widths such as 320 / 375 / 414 / 768 / 1024 / 1440.
 
-### 样式与可用性决策
-- 延续当前页面的数据密集型管理界面风格，不引入与现有设计系统冲突的第三方视觉语言。
-- 文件树节点、弹窗关闭按钮、下载按钮需具备清晰 hover / focus 状态。
-- 交互动效应控制在 150-300ms 范围内，并尊重 `prefers-reduced-motion`。
-- 移动端点击目标需满足最小可触达尺寸。
+### Style and Usability Decision
+- Continue the current data-dense management interface style; do not introduce third-party visual language that conflicts with the existing design system.
+- File tree nodes, dialog close buttons, and download buttons must have clear hover/focus states.
+- Interaction animations should be within 150-300ms and respect `prefers-reduced-motion`.
+- Mobile tap targets must meet the minimum touchable size.
 
-## 技术约束
+## Technical Constraints
 
-### 前端约束
-- 必须兼容现有技能详情页与审核详情页结构，不破坏当前三个 Tab 的主内容与既有操作。
-- 复用现有 Dialog、MarkdownRenderer、i18n、TanStack Query 模式。
-- 文件树由前端从平铺文件列表构建，不要求后端返回嵌套目录结构。
-- 不允许因为引入新组件导致现有样式体系明显漂移。
+### Frontend Constraints
+- Must be compatible with the existing skill detail page and review detail page structure, without breaking the main content or existing operations of the three tabs.
+- Reuse existing Dialog, MarkdownRenderer, i18n, and TanStack Query patterns.
+- The file tree is built on the frontend from the flat file list; the backend is not required to return a nested directory structure.
+- Introducing new components must not cause noticeable drift in the existing styling system.
 
-### 后端约束
-- 本期允许为审核页补充新接口或扩展现有返回结构，但应避免引入数据库 schema 变化。
-- 文件读取能力应限定在当前审核上下文可访问的 skill 版本上，不扩大权限边界。
-- 对超大文件 / 不支持预览类型应能返回明确错误或元信息，便于前端区分不可预览原因。
+### Backend Constraints
+- In this release, it is acceptable to add new APIs or extend existing response structures for the review page, but changes to the database schema should be avoided.
+- File reading capability should be limited to the skill version accessible in the current review context and must not expand permission boundaries.
+- For very large files or unsupported preview types, the backend should be able to return a clear error or metadata so the frontend can distinguish the reason a file cannot be previewed.
 
-### 性能约束
-- 打开文件树不应阻塞页面初次渲染。
-- 文件预览按需加载，不能一次性拉取所有文件正文。
-- 目录树展开 / 收起应保持即时响应，不因大规模重渲染造成明显卡顿。
+### Performance Constraints
+- Opening the file tree must not block the initial page render.
+- File previews are loaded on demand; all file content must not be fetched at once.
+- Expanding/collapsing directory tree nodes should remain instantly responsive, with no noticeable lag from large-scale re-renders.
 
-### 安全约束
-- 继续沿用现有技能详情页和审核页的鉴权边界。
-- 审核页新增文件正文读取能力时，必须确保仅审核相关角色可访问对应资源。
-- 不可通过构造任意路径越权读取 skill 包之外的内容。
+### Security Constraints
+- Continue to follow the existing authorization boundaries of the skill detail page and review page.
+- When adding file content reading capability to the review page, ensure that only audit-related roles can access the corresponding resources.
+- Arbitrary path construction must not be used to access content outside the skill package.
 
-### 国际化约束
-- 中英文都需补充文件浏览、预览、不可预览、大文件提示、下载操作等文案。
+### Internationalization Constraints
+- Both Chinese and English require new copy for file browsing, preview, preview-not-supported, large file notices, and download actions.
 
-## 风险评估
+## Risk Assessment
 
-### 技术风险
-1. 审核页缺少任意文件正文读取能力，若后端接口设计不清晰，可能导致前后端联调返工。
-2. 第三方文件树 / 代码查看组件可能与现有 Tailwind 风格不匹配，带来样式整合成本。
-3. 文件类型判断与大文件判定策略若不统一，可能导致详情页与审核页行为不一致。
+### Technical Risks
+1. The review page lacks the ability to read arbitrary file content by path; if the backend API design is unclear, it may lead to rework during frontend-backend integration.
+2. Third-party file tree / code viewer components may not match the existing Tailwind style, creating style integration costs.
+3. If file type detection and large file handling policies are inconsistent, it may cause behavioral differences between the detail page and the review page.
 
-### 交互风险
-1. 桌面端双栏与移动端单栏切换如果布局边界控制不好，容易出现横向滚动或内容拥挤。
-2. 弹窗预览若对长文本处理不当，可能造成滚动区域难用或阅读效率差。
+### Interaction Risks
+1. If the layout boundary between the desktop two-column and mobile single-column layouts is not well controlled, horizontal scrolling or content crowding may occur.
+2. If the dialog preview does not handle long text properly, the scroll area may be difficult to use or the reading experience may be poor.
 
-### 缓解措施
-- 优先复用现有 Markdown、Dialog 与查询模式，减少引入面。
-- 将“按路径读取正文”的能力抽象为共享模型，详情页和审核页统一使用。
-- 先定义统一的“可预览 / 不可预览 / 可下载”判定规则，再进入实现。
-- 将第三方组件引入作为可选路径，而非前置依赖。
+### Mitigations
+- Prioritize reusing existing Markdown, Dialog, and query patterns to reduce the surface area of new introductions.
+- Abstract "read content by path" into a shared model used uniformly by both the detail page and the review page.
+- First define a unified "previewable / non-previewable / downloadable" determination rule before starting implementation.
+- Treat third-party component inclusion as an optional path, not a prerequisite dependency.
 
-## 验收标准
+## Acceptance Criteria
 
-### 功能验收
-- 技能详情页三个 Tab 下均能看到文件浏览侧边栏。
-- 审核详情页三个 Tab 下均能看到文件浏览侧边栏。
-- 平铺文件列表能正确转换为目录树，且支持文件夹展开 / 收起。
-- 点击文件节点后能打开预览弹窗。
-- Markdown 文件能正确渲染。
-- 常见文本文件能以源码 / 纯文本形式展示。
-- 二进制文件或超大文件会显示不可预览提示。
-- 不可预览文件提供下载入口。
-- 审核页支持点击任意文件并预览，不局限于 README。
+### Functional Acceptance
+- The file browser sidebar is visible in all three tabs of the skill detail page.
+- The file browser sidebar is visible in all three tabs of the review detail page.
+- The flat file list is correctly converted to a directory tree, supporting folder expand/collapse.
+- Clicking a file node opens the preview dialog.
+- Markdown files render correctly.
+- Common text files are displayed as source code / plain text.
+- Binary files or very large files show a "preview not supported" notice.
+- Non-previewable files provide a download entry.
+- The review page supports clicking any file and previewing it, not just the README.
 
-### 质量验收
-- 桌面端采用右侧侧边栏布局，移动端文件浏览区下沉到主内容下方。
-- 页面在常见断点下无异常横向滚动。
-- 不影响现有“概览 / 文件 / 版本”Tab 的既有内容与操作。
-- 新增文案完成中英文国际化覆盖。
+### Quality Acceptance
+- Desktop uses a right-side sidebar layout; mobile moves the file browser area below the main content.
+- No abnormal horizontal scrolling at common breakpoints.
+- Does not affect the existing content and operations of the "Overview / Files / Versions" tabs.
+- New copy is covered by both Chinese and English internationalization.
 
-## 执行阶段
+## Execution Phases
 
-### Phase 1: 共享模型与交互方案落地
-- 明确文件树节点模型、可预览类型规则、不可预览提示规则。
-- 评估是否存在可复用的开源文件树 / 文本预览能力，并完成选型结论。
+### Phase 1: Shared Model and Interaction Design
+- Define the file tree node model, previewable type rules, and non-previewable notice rules.
+- Evaluate whether there are reusable open-source file tree / text preview capabilities, and finalize the component selection decision.
 
-### Phase 2: 技能详情页集成
-- 抽象任意文件读取查询逻辑。
-- 将技能详情页平铺文件列表升级为目录树侧边栏。
-- 接入弹窗预览与下载能力。
+### Phase 2: Skill Detail Page Integration
+- Abstract the "read any file" query logic.
+- Upgrade the flat file list on the skill detail page to a directory tree sidebar.
+- Integrate dialog preview and download capability.
 
-### Phase 3: 审核页能力补齐
-- 为审核页补充任意文件正文读取接口或数据链路。
-- 在审核详情区块接入共享文件树与预览弹窗。
+### Phase 3: Review Page Capability Gap Filling
+- Add a new API or data pipeline for reading arbitrary file content on the review page.
+- Integrate the shared file tree and preview dialog into the review detail section.
 
-### Phase 4: 回归与体验完善
-- 补充中英文文案。
-- 验证桌面端 / 移动端布局、弹窗滚动、不可预览场景。
-- 补充回归测试，确保现有 Tab 内容和审核流程不受影响。
+### Phase 4: Regression and Experience Refinement
+- Add Chinese and English copy.
+- Verify desktop / mobile layout, dialog scrolling, and non-previewable scenarios.
+- Add regression tests to ensure existing tab content and review workflow are not affected.
 
-## 非本期需求记录
-- 文件浏览版本切换需要单独设计权限边界、交互入口和不影响现有功能的约束，本期仅记录，不实现。
+## Out-of-Scope Requirements
+- File browser version switching requires a separate design of permission boundaries, interaction entry points, and constraints that do not affect existing features; this is noted but not implemented in this release.
 
-## 关联文档
+## Related Documents
 
-### 需求文档
-- [API 接口契约](../requirements/2026-03-20-skill-file-browser-sidebar/05-api-contract.md) - 定义前后端接口规范
-- [验收用例](../requirements/2026-03-20-skill-file-browser-sidebar/04-acceptance-cases.md) - 功能验收测试用例
+### Requirements Documents
+- [API Interface Contract](../requirements/2026-03-20-skill-file-browser-sidebar/05-api-contract.md) - Defines frontend-backend interface specifications
+- [Acceptance Cases](../requirements/2026-03-20-skill-file-browser-sidebar/04-acceptance-cases.md) - Functional acceptance test cases
 
-### 执行计划
-- [实施计划](../superpowers/plans/2026-03-22-skill-file-browser-sidebar.md) - 详细的开发任务分解与执行步骤
+### Execution Plan
+- [Implementation Plan](../superpowers/plans/2026-03-22-skill-file-browser-sidebar.md) - Detailed development task breakdown and execution steps
 
-### 技术参考
-- 现有组件：
-  - `web/src/features/skill/file-tree.tsx` - 当前平铺文件列表实现
-  - `web/src/features/skill/markdown-renderer.tsx` - Markdown 渲染器
-  - `web/src/shared/ui/dialog.tsx` - 弹窗组件
-- 现有 API：
-  - `GET /api/v1/skills/{namespace}/{slug}/versions/{version}/file?path=...` - 技能文件读取接口
-  - `GET /api/v1/reviews/{id}` - 审核详情接口（需扩展）
+### Technical References
+- Existing components:
+  - `web/src/features/skill/file-tree.tsx` - Current flat file list implementation
+  - `web/src/features/skill/markdown-renderer.tsx` - Markdown renderer
+  - `web/src/shared/ui/dialog.tsx` - Dialog component
+- Existing APIs:
+  - `GET /api/v1/skills/{namespace}/{slug}/versions/{version}/file?path=...` - Skill file read API
+  - `GET /api/v1/reviews/{id}` - Review detail API (needs extension)

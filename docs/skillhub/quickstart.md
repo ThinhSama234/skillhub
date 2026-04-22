@@ -1,19 +1,19 @@
-# 快速开始
+# Quick Start
 
-## 一键部署
+## One-Command Deployment
 
-使用 curl 命令快速部署 SkillHub（包含所有服务：Web UI、Backend API、PostgreSQL、Redis、MinIO、Skill Scanner）：
+Use a curl command to quickly deploy SkillHub (including all services: Web UI, Backend API, PostgreSQL, Redis, MinIO, and Skill Scanner):
 
 ```bash
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up
 ```
 
-**国内用户（阿里云镜像）：**
+**Users in mainland China (Aliyun mirror):**
 ```bash
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up --aliyun
 ```
 
-**自定义参数**：
+**Custom parameters:**
 ```bash
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up \
   --version v0.2.0 \
@@ -21,214 +21,214 @@ curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- u
   --aliyun
 ```
 
-**参数说明**：
-| 参数 | 说明 | 示例 |
+**Parameter reference:**
+| Parameter | Description | Example |
 |------|------|------|
-| `--version <tag>` | 指定版本 | `--version v0.2.0` |
-| `--aliyun` | 使用阿里云镜像（国内推荐） | `--aliyun` |
-| `--home <dir>` | 指定安装目录 | `--home /opt/skillhub` |
-| `--no-scanner` | 禁用安全扫描服务 | `--no-scanner` |
-| `--mirror-registry <url>` | 自定义镜像仓库 | `--mirror-registry registry.example.com` |
+| `--version <tag>` | Specify a version | `--version v0.2.0` |
+| `--aliyun` | Use Aliyun mirror (recommended for mainland China) | `--aliyun` |
+| `--home <dir>` | Specify the installation directory | `--home /opt/skillhub` |
+| `--no-scanner` | Disable the security scanning service | `--no-scanner` |
+| `--mirror-registry <url>` | Custom image registry | `--mirror-registry registry.example.com` |
 
-**其他命令**：
+**Other commands:**
 ```bash
-# 停止服务
+# Stop services
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- down
 
-# 查看服务状态
+# View service status
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- ps
 
-# 查看日志
+# View logs
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- logs
 
-# 清理所有数据
+# Clear all data
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- clean
 ```
 
-部署成功后访问：
+After a successful deployment, access:
 - **Web UI**: http://localhost:3000
 - **Backend API**: http://localhost:8080
-- **API 文档**: http://localhost:8080/swagger-ui.html
+- **API Docs**: http://localhost:8080/swagger-ui.html
 - **Skill Scanner**: http://localhost:8000
 
-## 本地开发
+## Local Development
 
-如果需要从源码启动开发环境：
+If you need to start the development environment from source code:
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone https://github.com/iflytek/skillhub.git
 cd skillhub
 
-# 启动所有服务（包含 Scanner）
+# Start all services (including Scanner)
 make dev-all
 ```
 
-### 国内开发者注意事项
+### Notes for Developers in Mainland China
 
-如果 `make dev-all` 后端启动失败，常见原因：
+If the backend fails to start after `make dev-all`, common causes are:
 
-1. **Maven 依赖下载超时**
+1. **Maven dependency download timeout**
 
-   项目已内置阿里云镜像配置（`server/.mvn/settings.xml`），但 Maven 不会自动读取项目级配置。需要手动配置：
+   The project includes a built-in Aliyun mirror configuration (`server/.mvn/settings.xml`), but Maven does not automatically read project-level configuration. You need to configure it manually:
 
    ```bash
-   # 方式一：复制到用户目录（推荐）
+   # Option 1: Copy to user directory (recommended)
    mkdir -p ~/.m2
    cp server/.mvn/settings.xml ~/.m2/settings.xml
 
-   # 方式二：每次构建时指定
+   # Option 2: Specify on each build
    cd server && ./mvnw -s .mvn/settings.xml package
    ```
 
-2. **Java 版本不匹配**
+2. **Java version mismatch**
 
-   SkillHub 要求 Java 21+：
+   SkillHub requires Java 21+:
    ```bash
    java -version
    ```
 
-3. **端口冲突**
+3. **Port conflict**
 
-   检查 8080 端口是否被占用：
+   Check if port 8080 is already in use:
    ```bash
    lsof -i :8080
    ```
 
-详细的错误排查步骤，请查看 [常见问题](faq.md#本地开发启动失败)。
+For detailed troubleshooting steps, see [FAQ](faq.md#local-development-startup-failure).
 
-## 登录系统
+## Logging In
 
-### 方式一：使用内置管理员账号
+### Option 1: Use the Built-in Admin Account
 
-SkillHub 内置了一个超级管理员账号，可以直接登录：
+SkillHub includes a built-in super admin account for direct login:
 
-- **用户名**：`admin`
-- **密码**：`ChangeMe!2026`
+- **Username**: `admin`
+- **Password**: `ChangeMe!2026`
 
-> **安全提示**：生产环境部署后，请立即修改默认密码。
+> **Security note**: After deploying to production, change the default password immediately.
 
-### 方式二：注册新账号
+### Option 2: Register a New Account
 
-访问 http://localhost:3000/register 注册新账号。
+Visit http://localhost:3000/register to register a new account.
 
-### 方式三：使用 Mock 用户（仅本地开发）
+### Option 3: Use Mock Users (Local Development Only)
 
-本地开发时，可以使用 Mock 用户头快速登录：
+During local development, you can quickly log in using the mock user header:
 
 ```bash
-# 普通用户
+# Regular user
 curl -H "X-Mock-User-Id: local-user" http://localhost:8080/api/v1/auth/me
 
-# 超级管理员
+# Super admin
 curl -H "X-Mock-User-Id: local-admin" http://localhost:8080/api/v1/auth/me
 ```
 
-在浏览器中，可以通过浏览器插件（如 ModHeader）添加 `X-Mock-User-Id` 请求头。
+In a browser, you can add the `X-Mock-User-Id` request header using a browser extension such as ModHeader.
 
-## 安装 CLI 工具
+## Installing the CLI Tool
 
-SkillHub 兼容 OpenClaw CLI，可以使用 `npx clawhub` 命令管理技能包：
+SkillHub is compatible with the OpenClaw CLI. Use the `npx clawhub` command to manage skill packages:
 
 ```bash
-# 配置 SkillHub 注册中心地址
+# Configure the SkillHub registry address
 export CLAWHUB_REGISTRY=http://localhost:8080
 
-# 搜索技能包
+# Search for skill packages
 npx clawhub search email
 
-# 安装技能包
+# Install a skill package
 npx clawhub install my-skill
 
-# 发布技能包
+# Publish a skill package
 npx clawhub publish ./my-skill
 ```
 
-## 发布第一个技能包
+## Publishing Your First Skill Package
 
-### 使用 CLI 工具发布（推荐）
+### Publishing with the CLI Tool (Recommended)
 
-1. **准备技能包**
+1. **Prepare the skill package**
 
-创建一个简单的技能包目录：
+Create a simple skill package directory:
 
 ```
 my-skill/
-├── skill.md          # 技能描述
-├── package.json      # 元数据
-└── scripts/          # 脚本文件
+├── skill.md          # Skill description
+├── package.json      # Metadata
+└── scripts/          # Script files
     └── main.py
 ```
 
-2. **使用 CLI 发布**
+2. **Publish with the CLI**
 
 ```bash
-# 配置注册中心
+# Configure the registry
 export CLAWHUB_REGISTRY=http://localhost:8080
 
-# 发布到默认命名空间
+# Publish to the default namespace
 npx clawhub publish ./my-skill
 
-# 发布到指定命名空间
+# Publish to a specific namespace
 npx clawhub publish ./my-skill --namespace my-team
 ```
 
-3. **等待安全扫描**
+3. **Wait for security scanning**
 
-发布后，Skill Scanner 会自动扫描技能包，检测潜在的安全问题：
-- 恶意代码检测
-- 敏感信息泄露
-- 依赖漏洞扫描
-- 行为分析
+After publishing, the Skill Scanner will automatically scan the skill package for potential security issues:
+- Malicious code detection
+- Sensitive information leakage
+- Dependency vulnerability scanning
+- Behavior analysis
 
-扫描结果会显示在技能包详情页。
+Scan results are shown on the skill package detail page.
 
-4. **等待审核**（如果命名空间开启了审核）
+4. **Wait for review** (if the namespace has review enabled)
 
-管理员会收到通知，审核通过后技能包正式发布。
+The admin will be notified, and the skill package will be officially published after the review is approved.
 
-### 使用 Web UI 发布
+### Publishing with the Web UI
 
-1. 访问 http://localhost:3000/dashboard/publish
-2. 选择命名空间（如果没有，先创建一个）
-3. 上传 zip 文件
-4. 选择可见性（PUBLIC / PRIVATE / INTERNAL）
-5. 点击「发布」
+1. Visit http://localhost:3000/dashboard/publish
+2. Select a namespace (create one first if you don't have one)
+3. Upload a zip file
+4. Select visibility (PUBLIC / PRIVATE / INTERNAL)
+5. Click "Publish"
 
-## 搜索和下载技能包
+## Searching and Downloading Skill Packages
 
-### 使用 CLI 工具
+### Using the CLI Tool
 
 ```bash
-# 搜索技能包
+# Search for skill packages
 npx clawhub search pdf
 
-# 安装技能包
+# Install a skill package
 npx clawhub install pdf-parser
 
-# 安装指定命名空间的技能包
+# Install a skill package from a specific namespace
 npx clawhub install my-team--pdf-parser
 ```
 
-### 使用 Web UI
+### Using the Web UI
 
-1. 访问 http://localhost:3000/search
-2. 输入关键词搜索
-3. 点击技能包查看详情
-4. 点击「下载」或复制安装命令
+1. Visit http://localhost:3000/search
+2. Enter a keyword to search
+3. Click on a skill package to view details
+4. Click "Download" or copy the installation command
 
-## 升级 SkillHub
+## Upgrading SkillHub
 
-使用 curl 命令升级到最新版本：
+Use a curl command to upgrade to the latest version:
 
 ```bash
-# 升级到最新版本
+# Upgrade to the latest version
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- pull
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- down
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up
 
-# 升级到指定版本
+# Upgrade to a specific version
 curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up --version v0.2.0
 ```
 
-> **注意**：升级前建议备份数据库和对象存储。
+> **Note**: It is recommended to back up the database and object storage before upgrading.

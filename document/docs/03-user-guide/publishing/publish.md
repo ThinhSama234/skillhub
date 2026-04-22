@@ -1,50 +1,50 @@
 ---
-title: 发布流程
+title: Publishing Process
 sidebar_position: 2
-description: 发布技能到 SkillHub
+description: Publish a skill to SkillHub
 ---
 
-# 发布流程
+# Publishing Process
 
-## 通过 Web 发布
+## Publish via Web
 
-1. 登录 SkillHub
-2. 点击"发布技能"
-3. 选择目标命名空间
-4. 上传技能包 ZIP 文件
-5. 填写版本信息（变更日志等）
-6. 提交发布
-7. 等待审核（如需要）
-8. 审核通过后发布成功
+1. Log in to SkillHub
+2. Click "Publish Skill"
+3. Select the target namespace
+4. Upload the skill package ZIP file
+5. Fill in version information (changelog, etc.)
+6. Submit for publishing
+7. Wait for review (if required)
+8. Once approved, the skill is published successfully
 
-## 通过 CLI 发布
+## Publish via CLI
 
 ```bash
-# 1. 登录
+# 1. Log in
 clawhub login
 
-# 2. 发布
+# 2. Publish
 clawhub publish ./my-skill.zip --namespace @team-myteam
 ```
 
-## 通过 ClawHub CLI 发布
+## Publish via ClawHub CLI
 
-配置 registry 后使用：
+After configuring the registry:
 
 ```bash
 clawhub publish ./my-skill.zip
 ```
 
-## 发布状态
+## Publication Status
 
-| 状态 | 说明 |
-|------|------|
-| `DRAFT` | 草稿，未提交审核 |
-| `PENDING_REVIEW` | 等待审核 |
-| `PUBLISHED` | 已发布，可被发现和下载 |
-| `REJECTED` | 已拒绝，需修改后重新提交 |
-| `YANKED` | 已撤回，不再推荐使用 |
+| Status | Description |
+|--------|-------------|
+| `DRAFT` | Draft; not yet submitted for review |
+| `PENDING_REVIEW` | Awaiting review |
+| `PUBLISHED` | Published; discoverable and downloadable |
+| `REJECTED` | Rejected; must be revised and resubmitted |
+| `YANKED` | Yanked; no longer recommended for use |
 
-## 下一步
+## Next Steps
 
-- [版本管理](./versioning) - 管理技能版本
+- [Version Management](./versioning) - Manage skill versions

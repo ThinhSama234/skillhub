@@ -1,42 +1,42 @@
 ---
-title: 提升到全局
+title: Promote to Global
 sidebar_position: 2
-description: 申请将团队技能提升到全局空间
+description: Apply to promote a team skill to the global space
 ---
 
-# 提升到全局
+# Promote to Global
 
-优秀的团队技能可以申请提升到全局空间，供全企业使用。
+Outstanding team skills can be promoted to the global space for use across the entire organization.
 
-## 提升前提
+## Prerequisites for Promotion
 
-- 技能在团队空间已发布
-- 申请人是技能 owner 或命名空间 ADMIN
-- 技能没有待审核的提升申请
+- The skill has already been published in the team space
+- The applicant is the skill owner or a namespace ADMIN
+- There is no pending promotion request for the skill
 
-## 申请提升
+## Applying for Promotion
 
-1. 进入团队技能详情页
-2. 点击"提升到全局"
-3. 填写申请说明
-4. 提交申请
+1. Go to the team skill detail page
+2. Click "Promote to Global"
+3. Fill in the application description
+4. Submit the request
 
-## 审核流程
+## Review Process
 
-1. 平台管理员收到提升申请
-2. 审核技能质量和适用性
-3. 审核通过后：
-   - 在全局空间创建新技能
-   - 保留原团队技能
-   - 记录来源追溯关系
+1. A platform administrator receives the promotion request
+2. The skill's quality and applicability are reviewed
+3. Upon approval:
+   - A new skill is created in the global space
+   - The original team skill is retained
+   - The source traceability relationship is recorded
 
-## 提升后
+## After Promotion
 
-- 全局空间的新技能独立管理
-- 原团队技能继续存在
-- 两者版本不自动同步
-- 如需同步需手动操作
+- The new skill in the global space is managed independently
+- The original team skill continues to exist
+- Versions are not automatically synchronized between the two
+- Manual action is required if synchronization is needed
 
-## 下一步
+## Next Steps
 
-- [API 概述](../../developer/api/overview) - API 集成
+- [API Overview](../../developer/api/overview) - API integration

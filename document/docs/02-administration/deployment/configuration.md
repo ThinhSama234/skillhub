@@ -1,69 +1,69 @@
 ---
-title: 配置说明
+title: Configuration Reference
 sidebar_position: 3
-description: SkillHub 配置项详细说明
+description: Detailed description of SkillHub configuration options
 ---
 
-# 配置说明
+# Configuration Reference
 
-## 环境变量
+## Environment Variables
 
-SkillHub 通过环境变量进行配置，主要配置项如下：
+SkillHub is configured through environment variables. The main configuration options are as follows:
 
-### 基础配置
+### Basic Configuration
 
-| 环境变量 | 说明 | 默认值 |
+| Environment Variable | Description | Default |
 |---------|------|--------|
-| `SKILLHUB_PUBLIC_BASE_URL` | 公网访问地址 | - |
-| `SKILLHUB_VERSION` | 镜像版本 | `edge` |
+| `SKILLHUB_PUBLIC_BASE_URL` | Public access URL | - |
+| `SKILLHUB_VERSION` | Image version | `edge` |
 
-### 数据库配置
+### Database Configuration
 
-| 环境变量 | 说明 | 默认值 |
+| Environment Variable | Description | Default |
 |---------|------|--------|
-| `POSTGRES_HOST` | PostgreSQL 主机 | `postgres` |
-| `POSTGRES_PORT` | PostgreSQL 端口 | `5432` |
-| `POSTGRES_DB` | 数据库名 | `skillhub` |
-| `POSTGRES_USER` | 数据库用户 | `skillhub` |
-| `POSTGRES_PASSWORD` | 数据库密码 | - |
+| `POSTGRES_HOST` | PostgreSQL host | `postgres` |
+| `POSTGRES_PORT` | PostgreSQL port | `5432` |
+| `POSTGRES_DB` | Database name | `skillhub` |
+| `POSTGRES_USER` | Database user | `skillhub` |
+| `POSTGRES_PASSWORD` | Database password | - |
 
-### Redis 配置
+### Redis Configuration
 
-| 环境变量 | 说明 | 默认值 |
+| Environment Variable | Description | Default |
 |---------|------|--------|
-| `REDIS_HOST` | Redis 主机 | `redis` |
-| `REDIS_PORT` | Redis 端口 | `6379` |
-| `REDIS_PASSWORD` | Redis 密码 | - |
+| `REDIS_HOST` | Redis host | `redis` |
+| `REDIS_PORT` | Redis port | `6379` |
+| `REDIS_PASSWORD` | Redis password | - |
 
-### 存储配置
+### Storage Configuration
 
-| 环境变量 | 说明 | 默认值 |
+| Environment Variable | Description | Default |
 |---------|------|--------|
-| `SKILLHUB_STORAGE_PROVIDER` | 存储提供方 | `local` |
-| `SKILLHUB_STORAGE_S3_ENDPOINT` | S3 端点 | - |
-| `SKILLHUB_STORAGE_S3_BUCKET` | S3 桶名 | - |
+| `SKILLHUB_STORAGE_PROVIDER` | Storage provider | `local` |
+| `SKILLHUB_STORAGE_S3_ENDPOINT` | S3 endpoint | - |
+| `SKILLHUB_STORAGE_S3_BUCKET` | S3 bucket name | - |
 | `SKILLHUB_STORAGE_S3_ACCESS_KEY` | S3 Access Key | - |
 | `SKILLHUB_STORAGE_S3_SECRET_KEY` | S3 Secret Key | - |
 
-### OAuth 配置
+### OAuth Configuration
 
-| 环境变量 | 说明 | 默认值 |
+| Environment Variable | Description | Default |
 |---------|------|--------|
 | `OAUTH2_GITHUB_CLIENT_ID` | GitHub OAuth Client ID | - |
 | `OAUTH2_GITHUB_CLIENT_SECRET` | GitHub OAuth Client Secret | - |
 
-### 首登管理员配置
+### Bootstrap Admin Configuration
 
-| 环境变量 | 说明 | 默认值 |
+| Environment Variable | Description | Default |
 |---------|------|--------|
-| `BOOTSTRAP_ADMIN_ENABLED` | 是否启用首登管理员 | `true` |
-| `BOOTSTRAP_ADMIN_USERNAME` | 首登管理员用户名 | `admin` |
-| `BOOTSTRAP_ADMIN_PASSWORD` | 首登管理员密码 | `ChangeMe!2026` |
+| `BOOTSTRAP_ADMIN_ENABLED` | Enable bootstrap admin | `true` |
+| `BOOTSTRAP_ADMIN_USERNAME` | Bootstrap admin username | `admin` |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Bootstrap admin password | `ChangeMe!2026` |
 
-## 配置文件
+## Configuration Files
 
-Spring Boot 配置文件位于 `server/skillhub-app/src/main/resources/`。
+Spring Boot configuration files are located at `server/skillhub-app/src/main/resources/`.
 
-## 下一步
+## Next Steps
 
-- [认证配置](../security/authentication) - 配置身份认证
+- [Authentication Configuration](../security/authentication) - Configure identity authentication

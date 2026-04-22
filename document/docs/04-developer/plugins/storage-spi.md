@@ -1,12 +1,12 @@
 ---
-title: 存储 SPI
+title: Storage SPI
 sidebar_position: 2
-description: 存储服务提供方扩展
+description: Storage service provider extension
 ---
 
-# 存储 SPI
+# Storage SPI
 
-## SPI 接口
+## SPI Interface
 
 ```java
 public interface ObjectStorageService {
@@ -17,38 +17,38 @@ public interface ObjectStorageService {
 }
 ```
 
-## 内置实现
+## Built-in Implementations
 
 ### LocalFileStorageService
 
-本地文件系统实现，用于开发环境。
+Local filesystem implementation, intended for development environments.
 
 ### S3StorageService
 
-S3 协议兼容实现，支持：
+S3 protocol-compatible implementation, supporting:
 - AWS S3
 - MinIO
-- 阿里云 OSS
-- 腾讯云 COS
-- 其他 S3 兼容存储
+- Alibaba Cloud OSS
+- Tencent Cloud COS
+- Other S3-compatible storage
 
-## 配置
+## Configuration
 
 ```bash
-# 选择存储提供方
+# Choose storage provider
 SKILLHUB_STORAGE_PROVIDER=s3
 
-# S3 配置
+# S3 configuration
 SKILLHUB_STORAGE_S3_ENDPOINT=https://s3.example.com
 SKILLHUB_STORAGE_S3_BUCKET=skillhub
 SKILLHUB_STORAGE_S3_ACCESS_KEY=xxx
 SKILLHUB_STORAGE_S3_SECRET_KEY=xxx
 ```
 
-## 自定义实现
+## Custom Implementation
 
-实现 `ObjectStorageService` 接口，注册为 Spring Bean 即可。
+Implement the `ObjectStorageService` interface and register it as a Spring Bean.
 
-## 下一步
+## Next Steps
 
-- [常见问题](../../reference/faq) - FAQ
+- [FAQ](../../reference/faq) - Frequently asked questions

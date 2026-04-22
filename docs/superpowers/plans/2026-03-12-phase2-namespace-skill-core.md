@@ -1,27 +1,27 @@
-# Phase 2: 命名空间 + Skill 核心链路 Implementation Plan
+# Phase 2: Namespace + Skill Core Pipeline Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 Phase 1 工程骨架和认证体系基础上，实现命名空间管理、对象存储、技能发布/查询/下载完整链路、标签管理、PostgreSQL 全文搜索、异步事件和应用层精细限流。
+**Goal:** Building on the Phase 1 engineering skeleton and authentication system, implement namespace management, object storage, the complete skill publish/query/download pipeline, tag management, PostgreSQL full-text search, async events, and fine-grained application-layer rate limiting.
 
-**Architecture:** Maven 多模块后端（6 模块）扩展 + React 前端页面。后端采用领域服务集中式架构，domain 模块包含领域服务和应用服务。对象存储 SPI 双实现（LocalFile + S3），搜索 SPI PostgreSQL Full-Text 实现。发布流程 Phase 2 跳过审核直接到 PUBLISHED。
+**Architecture:** Maven multi-module backend (6 modules) extension + React frontend pages. The backend uses a centralized domain service architecture; the domain module contains domain services and application services. Object storage SPI has dual implementations (LocalFile + S3); search SPI uses a PostgreSQL Full-Text implementation. The publish flow in Phase 2 bypasses review and goes directly to PUBLISHED.
 
-**身份主键约束：** 用户身份主键全链路统一使用 `string`。本计划中所有 `userId` / `ownerId` / `createdBy` / `updatedBy` / `reviewedBy` 等用户标识字段均按字符串实现；旧的 `Long` / `BIGINT` 表述仅代表历史残留，不得继续照抄到代码或数据库设计。
+**Identity Primary Key Constraint:** User identity primary keys use `string` end-to-end across the entire system. All `userId` / `ownerId` / `createdBy` / `updatedBy` / `reviewedBy` and similar user identifier fields in this plan are implemented as strings; any old `Long` / `BIGINT` descriptions are historical artifacts and must not be copied into code or database designs.
 
 **Tech Stack:**
 - Backend: Spring Boot 3.x + JDK 21 + PostgreSQL 16 + Redis 7 + Spring Data JPA + Flyway + AWS SDK v2 (S3) + SnakeYAML
 - Frontend: React 19 + TypeScript + Vite + TanStack Router + TanStack Query + shadcn/ui + Tailwind CSS + react-markdown + react-dropzone
 - DevOps: Docker Compose (PostgreSQL + Redis + MinIO) + Maven Wrapper + Makefile
 
-**前置条件:** Phase 1 全部 3 个 Chunk 完成（后端骨架 + 认证授权 + 前端骨架）
+**Prerequisites:** All 3 Phase 1 Chunks completed (backend skeleton + auth/authorization + frontend skeleton)
 
 ---
 
-## Chunk 1: 后端全部
+## Chunk 1: Full Backend
 
-本块实现 Phase 2 全部后端功能：数据库迁移、对象存储、命名空间管理、技能发布/查询/下载、标签管理、搜索、异步事件、限流。
+This chunk implements all Phase 2 backend features: database migration, object storage, namespace management, skill publish/query/download, tag management, search, async events, and rate limiting.
 
-### 文件结构映射
+### File Structure Mapping
 
 ```
 server/
@@ -30,43 +30,43 @@ server/
 │       ├── main/
 │       │   ├── java/com/iflytek/skillhub/
 │       │   │   ├── config/
-│       │   │   │   ├── AsyncConfig.java                    # 异步线程池配置
-│       │   │   │   └── WebMvcRateLimitConfig.java          # 限流拦截器注册
+│       │   │   │   ├── AsyncConfig.java                    # Async thread pool configuration
+│       │   │   │   └── WebMvcRateLimitConfig.java          # Rate limiter interceptor registration
 │       │   │   ├── controller/
 │       │   │   │   └── portal/
-│       │   │   │       ├── NamespaceController.java        # 命名空间公开 API
-│       │   │   │       ├── SkillController.java            # 技能公开查询/下载 API
-│       │   │   │       ├── SkillPublishController.java     # Web 端发布 API
-│       │   │   │       ├── SkillTagController.java         # 标签管理 API
-│       │   │   │       └── SkillSearchController.java      # 搜索 API
+│       │   │   │       ├── NamespaceController.java        # Namespace public API
+│       │   │   │       ├── SkillController.java            # Skill public query/download API
+│       │   │   │       ├── SkillPublishController.java     # Web-side publish API
+│       │   │   │       ├── SkillTagController.java         # Tag management API
+│       │   │   │       └── SkillSearchController.java      # Search API
 │       │   │   │   └── cli/
-│       │   │   │       └── CliPublishController.java       # CLI 发布 API
+│       │   │   │       └── CliPublishController.java       # CLI publish API
 │       │   │   ├── service/
-│       │   │   │   └── SkillSearchAppService.java          # 搜索应用服务（app 层）
+│       │   │   │   └── SkillSearchAppService.java          # Search application service (app layer)
 │       │   │   ├── ratelimit/
-│       │   │   │   ├── RateLimit.java                      # 限流注解
-│       │   │   │   ├── RateLimitInterceptor.java           # 限流拦截器
-│       │   │   │   └── SlidingWindowRateLimiter.java       # Redis 滑动窗口实现
+│       │   │   │   ├── RateLimit.java                      # Rate limit annotation
+│       │   │   │   ├── RateLimitInterceptor.java           # Rate limit interceptor
+│       │   │   │   └── SlidingWindowRateLimiter.java       # Redis sliding window implementation
 │       │   │   └── dto/
-│       │   │       ├── NamespaceRequest.java               # 命名空间请求 DTO
-│       │   │       ├── NamespaceResponse.java              # 命名空间响应 DTO
-│       │   │       ├── MemberRequest.java                  # 成员管理请求 DTO
-│       │   │       ├── MemberResponse.java                 # 成员管理响应 DTO
-│       │   │       ├── SkillDetailResponse.java            # 技能详情响应
-│       │   │       ├── SkillSummaryResponse.java           # 技能摘要响应
-│       │   │       ├── SkillVersionResponse.java           # 版本响应
-│       │   │       ├── SkillFileResponse.java              # 文件响应
-│       │   │       ├── PublishRequest.java                 # 发布请求
-│       │   │       ├── PublishResponse.java                # 发布响应
-│       │   │       ├── TagRequest.java                     # 标签请求
-│       │   │       ├── TagResponse.java                    # 标签响应
-│       │   │       └── SearchResponse.java                 # 搜索响应
+│       │   │       ├── NamespaceRequest.java               # Namespace request DTO
+│       │   │       ├── NamespaceResponse.java              # Namespace response DTO
+│       │   │       ├── MemberRequest.java                  # Member management request DTO
+│       │   │       ├── MemberResponse.java                 # Member management response DTO
+│       │   │       ├── SkillDetailResponse.java            # Skill detail response
+│       │   │       ├── SkillSummaryResponse.java           # Skill summary response
+│       │   │       ├── SkillVersionResponse.java           # Version response
+│       │   │       ├── SkillFileResponse.java              # File response
+│       │   │       ├── PublishRequest.java                 # Publish request
+│       │   │       ├── PublishResponse.java                # Publish response
+│       │   │       ├── TagRequest.java                     # Tag request
+│       │   │       ├── TagResponse.java                    # Tag response
+│       │   │       └── SearchResponse.java                 # Search response
 │       │   └── resources/
 │       │       ├── db/migration/
-│       │       │   └── V2__phase2_skill_tables.sql         # Phase 2 数据库迁移
-│       │       ├── ratelimit.lua                           # Redis 滑动窗口 Lua 脚本
-│       │       ├── application.yml                         # 更新：新增 storage/search/publish 配置
-│       │       └── application-local.yml                   # 更新：新增 local storage 配置
+│       │       │   └── V2__phase2_skill_tables.sql         # Phase 2 database migration
+│       │       ├── ratelimit.lua                           # Redis sliding window Lua script
+│       │       ├── application.yml                         # Updated: added storage/search/publish config
+│       │       └── application-local.yml                   # Updated: added local storage config
 │       └── test/java/com/iflytek/skillhub/
 │           ├── controller/
 │           │   ├── NamespaceControllerTest.java
@@ -79,44 +79,44 @@ server/
 │   └── src/
 │       ├── main/java/com/iflytek/skillhub/domain/
 │       │   ├── namespace/
-│       │   │   ├── Namespace.java                          # 修改：补齐 type/avatarUrl
-│       │   │   ├── NamespaceMember.java                    # 修改：补齐 updatedAt
-│       │   │   ├── NamespaceType.java                      # 新增枚举
-│       │   │   ├── NamespaceRepository.java                # 修改：新增方法
-│       │   │   ├── NamespaceMemberRepository.java          # 修改：新增方法
-│       │   │   ├── NamespaceService.java                   # 新增
-│       │   │   ├── NamespaceMemberService.java             # 新增
-│       │   │   └── SlugValidator.java                      # 新增
+│       │   │   ├── Namespace.java                          # Modified: added type/avatarUrl fields
+│       │   │   ├── NamespaceMember.java                    # Modified: added updatedAt field
+│       │   │   ├── NamespaceType.java                      # New enum
+│       │   │   ├── NamespaceRepository.java                # Modified: added new methods
+│       │   │   ├── NamespaceMemberRepository.java          # Modified: added new methods
+│       │   │   ├── NamespaceService.java                   # New
+│       │   │   ├── NamespaceMemberService.java             # New
+│       │   │   └── SlugValidator.java                      # New
 │       │   ├── skill/
-│       │   │   ├── Skill.java                              # 新增实体
-│       │   │   ├── SkillVersion.java                       # 新增实体
-│       │   │   ├── SkillFile.java                          # 新增实体
-│       │   │   ├── SkillTag.java                           # 新增实体
-│       │   │   ├── SkillStatus.java                        # 新增枚举
-│       │   │   ├── SkillVersionStatus.java                 # 新增枚举
-│       │   │   ├── SkillVisibility.java                    # 新增枚举
-│       │   │   ├── SkillRepository.java                    # 新增接口
-│       │   │   ├── SkillVersionRepository.java             # 新增接口
-│       │   │   ├── SkillFileRepository.java                # 新增接口
-│       │   │   ├── SkillTagRepository.java                 # 新增接口
-│       │   │   └── VisibilityChecker.java                  # 新增
+│       │   │   ├── Skill.java                              # New entity
+│       │   │   ├── SkillVersion.java                       # New entity
+│       │   │   ├── SkillFile.java                          # New entity
+│       │   │   ├── SkillTag.java                           # New entity
+│       │   │   ├── SkillStatus.java                        # New enum
+│       │   │   ├── SkillVersionStatus.java                 # New enum
+│       │   │   ├── SkillVisibility.java                    # New enum
+│       │   │   ├── SkillRepository.java                    # New interface
+│       │   │   ├── SkillVersionRepository.java             # New interface
+│       │   │   ├── SkillFileRepository.java                # New interface
+│       │   │   ├── SkillTagRepository.java                 # New interface
+│       │   │   └── VisibilityChecker.java                  # New
 │       │   │   ├── service/
-│       │   │   │   ├── SkillPublishService.java            # 新增
-│       │   │   │   ├── SkillQueryService.java              # 新增
-│       │   │   │   ├── SkillDownloadService.java           # 新增
-│       │   │   │   └── SkillTagService.java                # 新增
+│       │   │   │   ├── SkillPublishService.java            # New
+│       │   │   │   ├── SkillQueryService.java              # New
+│       │   │   │   ├── SkillDownloadService.java           # New
+│       │   │   │   └── SkillTagService.java                # New
 │       │   │   ├── validation/
-│       │   │   │   ├── SkillPackageValidator.java          # 新增
-│       │   │   │   ├── PrePublishValidator.java            # 新增接口
-│       │   │   │   ├── NoOpPrePublishValidator.java        # 新增默认实现
-│       │   │   │   └── PackageEntry.java                   # 新增 record
+│       │   │   │   ├── SkillPackageValidator.java          # New
+│       │   │   │   ├── PrePublishValidator.java            # New interface
+│       │   │   │   ├── NoOpPrePublishValidator.java        # New default implementation
+│       │   │   │   └── PackageEntry.java                   # New record
 │       │   │   └── metadata/
-│       │   │       ├── SkillMetadataParser.java            # 新增
-│       │   │       └── SkillMetadata.java                  # 新增 record
+│       │   │       ├── SkillMetadataParser.java            # New
+│       │   │       └── SkillMetadata.java                  # New record
 │       │   └── event/
-│       │       ├── SkillPublishedEvent.java                # 新增
-│       │       ├── SkillDownloadedEvent.java               # 新增
-│       │       └── SkillStatusChangedEvent.java            # 新增
+│       │       ├── SkillPublishedEvent.java                # New
+│       │       ├── SkillDownloadedEvent.java               # New
+│       │       └── SkillStatusChangedEvent.java            # New
 │       └── test/java/com/iflytek/skillhub/domain/
 │           ├── namespace/
 │           │   ├── SlugValidatorTest.java
@@ -136,58 +136,58 @@ server/
 ├── skillhub-storage/
 │   └── src/
 │       ├── main/java/com/iflytek/skillhub/storage/
-│       │   ├── ObjectStorageService.java                   # 新增 SPI 接口
-│       │   ├── ObjectMetadata.java                         # 新增 record
-│       │   ├── StorageProperties.java                      # 新增配置属性
-│       │   ├── LocalFileStorageService.java                # 新增
-│       │   ├── S3StorageService.java                       # 新增
-│       │   └── S3StorageProperties.java                    # 新增配置属性
+│       │   ├── ObjectStorageService.java                   # New SPI interface
+│       │   ├── ObjectMetadata.java                         # New record
+│       │   ├── StorageProperties.java                      # New configuration properties
+│       │   ├── LocalFileStorageService.java                # New
+│       │   ├── S3StorageService.java                       # New
+│       │   └── S3StorageProperties.java                    # New configuration properties
 │       └── test/java/com/iflytek/skillhub/storage/
 │           ├── LocalFileStorageServiceTest.java
 │           └── S3StorageServiceTest.java
 ├── skillhub-search/
 │   └── src/
 │       ├── main/java/com/iflytek/skillhub/search/
-│       │   ├── SearchIndexService.java                     # 新增 SPI 接口
-│       │   ├── SearchQueryService.java                     # 新增 SPI 接口
-│       │   ├── SearchRebuildService.java                   # 新增 SPI 接口
-│       │   ├── SearchQuery.java                            # 新增 record
-│       │   ├── SearchVisibilityScope.java                  # 新增 record
-│       │   ├── SearchResult.java                           # 新增 record
-│       │   ├── SkillSearchDocument.java                    # 新增 record
+│       │   ├── SearchIndexService.java                     # New SPI interface
+│       │   ├── SearchQueryService.java                     # New SPI interface
+│       │   ├── SearchRebuildService.java                   # New SPI interface
+│       │   ├── SearchQuery.java                            # New record
+│       │   ├── SearchVisibilityScope.java                  # New record
+│       │   ├── SearchResult.java                           # New record
+│       │   ├── SkillSearchDocument.java                    # New record
 │       │   ├── postgres/
-│       │   │   ├── PostgresFullTextIndexService.java       # 新增
-│       │   │   ├── PostgresFullTextQueryService.java       # 新增
-│       │   │   └── PostgresSearchRebuildService.java       # 新增
+│       │   │   ├── PostgresFullTextIndexService.java       # New
+│       │   │   ├── PostgresFullTextQueryService.java       # New
+│       │   │   └── PostgresSearchRebuildService.java       # New
 │       │   └── event/
-│       │       ├── SearchIndexEventListener.java           # 新增
-│       │       └── DownloadCountEventListener.java         # 新增
+│       │       ├── SearchIndexEventListener.java           # New
+│       │       └── DownloadCountEventListener.java         # New
 │       └── test/java/com/iflytek/skillhub/search/
 │           └── postgres/
 │               ├── PostgresFullTextIndexServiceTest.java
 │               └── PostgresFullTextQueryServiceTest.java
 ├── skillhub-infra/
 │   └── src/main/java/com/iflytek/skillhub/infra/jpa/
-│       ├── SkillJpaRepository.java                         # 新增
-│       ├── SkillVersionJpaRepository.java                  # 新增
-│       ├── SkillFileJpaRepository.java                     # 新增
-│       ├── SkillTagJpaRepository.java                      # 新增
-│       └── SkillSearchDocumentJpaRepository.java           # 新增
-└── docker-compose.yml                                      # 修改：确认 MinIO 配置
+│       ├── SkillJpaRepository.java                         # New
+│       ├── SkillVersionJpaRepository.java                  # New
+│       ├── SkillFileJpaRepository.java                     # New
+│       ├── SkillTagJpaRepository.java                      # New
+│       └── SkillSearchDocumentJpaRepository.java           # New
+└── docker-compose.yml                                      # Modified: confirm MinIO configuration
 ```
 
-### Task 1: 数据库迁移 — Phase 2 表结构
+### Task 1: Database Migration — Phase 2 Table Structure
 
 **Files:**
 - Create: `server/skillhub-app/src/main/resources/db/migration/V2__phase2_skill_tables.sql`
 
-- [ ] **Step 1: 创建 V2 迁移脚本**
+- [ ] **Step 1: Create V2 migration script**
 
 ```sql
 -- V2__phase2_skill_tables.sql
--- Phase 2: 命名空间 + Skill 核心链路
+-- Phase 2: Namespace + Skill Core Pipeline
 
--- 技能主表
+-- Skill main table
 CREATE TABLE skill (
     id BIGSERIAL PRIMARY KEY,
     namespace_id BIGINT NOT NULL REFERENCES namespace(id),
@@ -212,7 +212,7 @@ CREATE TABLE skill (
 
 CREATE INDEX idx_skill_namespace_status ON skill(namespace_id, status);
 
--- 技能版本表
+-- Skill version table
 CREATE TABLE skill_version (
     id BIGSERIAL PRIMARY KEY,
     skill_id BIGINT NOT NULL REFERENCES skill(id),
@@ -234,7 +234,7 @@ CREATE INDEX idx_skill_version_skill_status ON skill_version(skill_id, status);
 ALTER TABLE skill ADD CONSTRAINT fk_skill_latest_version
     FOREIGN KEY (latest_version_id) REFERENCES skill_version(id);
 
--- 技能文件表
+-- Skill file table
 CREATE TABLE skill_file (
     id BIGSERIAL PRIMARY KEY,
     version_id BIGINT NOT NULL REFERENCES skill_version(id),
@@ -247,7 +247,7 @@ CREATE TABLE skill_file (
     UNIQUE(version_id, file_path)
 );
 
--- 技能标签表
+-- Skill tag table
 CREATE TABLE skill_tag (
     id BIGSERIAL PRIMARY KEY,
     skill_id BIGINT NOT NULL REFERENCES skill(id),
@@ -259,7 +259,7 @@ CREATE TABLE skill_tag (
     UNIQUE(skill_id, tag_name)
 );
 
--- 搜索文档表
+-- Search document table
 CREATE TABLE skill_search_document (
     id BIGSERIAL PRIMARY KEY,
     skill_id BIGINT NOT NULL UNIQUE REFERENCES skill(id),
@@ -289,17 +289,17 @@ CREATE INDEX idx_search_doc_namespace ON skill_search_document(namespace_id);
 CREATE INDEX idx_search_doc_visibility ON skill_search_document(visibility);
 ```
 
-- [ ] **Step 2: 启动依赖服务并执行迁移**
+- [ ] **Step 2: Start dependency services and execute migration**
 
 Run: `make dev && cd server && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local -Dspring-boot.run.arguments="--spring.main.web-application-type=none" 2>&1 | head -50`
 
-Expected: Flyway 输出 `Successfully applied 1 migration`，应用启动后 Ctrl+C 停止
+Expected: Flyway outputs `Successfully applied 1 migration`, then Ctrl+C to stop application
 
-- [ ] **Step 3: 验证表创建**
+- [ ] **Step 3: Verify table creation**
 
 Run: `docker compose exec postgres psql -U skillhub -d skillhub -c "\dt skill*"`
 
-Expected: 列出 skill, skill_version, skill_file, skill_tag, skill_search_document 五张表
+Expected: Lists skill, skill_version, skill_file, skill_tag, skill_search_document — five tables
 
 - [ ] **Step 4: Commit**
 
@@ -312,7 +312,7 @@ git commit -m "feat(db): add Phase 2 skill tables migration
 - Add foreign keys, unique constraints, and indexes per domain model spec"
 ```
 
-### Task 2: Phase 1 实体补齐 — Namespace 和 NamespaceMember
+### Task 2: Phase 1 Entity Completion — Namespace and NamespaceMember
 
 **Files:**
 - Modify: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/namespace/Namespace.java`
@@ -323,7 +323,7 @@ git commit -m "feat(db): add Phase 2 skill tables migration
 - Modify: `server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/NamespaceJpaRepository.java`
 - Modify: `server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/NamespaceMemberJpaRepository.java`
 
-- [ ] **Step 1: 创建 NamespaceType 枚举**
+- [ ] **Step 1: Create NamespaceType enum**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/namespace/NamespaceType.java << 'EOF'
@@ -336,9 +336,9 @@ public enum NamespaceType {
 EOF
 ```
 
-- [ ] **Step 2: 补齐 Namespace 实体字段（type 和 avatarUrl）**
+- [ ] **Step 2: Complete Namespace entity fields (type and avatarUrl)**
 
-在 `Namespace.java` 中添加缺失字段：
+Add missing fields to `Namespace.java`:
 
 ```java
 @Enumerated(EnumType.STRING)
@@ -349,7 +349,7 @@ private NamespaceType type = NamespaceType.TEAM;
 private String avatarUrl;
 ```
 
-添加 getter/setter：
+Add getter/setter:
 
 ```java
 public NamespaceType getType() { return type; }
@@ -361,16 +361,16 @@ public void setDescription(String description) { this.description = description;
 public void setDisplayName(String displayName) { this.displayName = displayName; }
 ```
 
-- [ ] **Step 3: 补齐 NamespaceMember 实体字段（updatedAt）**
+- [ ] **Step 3: Complete NamespaceMember entity field (updatedAt)**
 
-在 `NamespaceMember.java` 中添加 updatedAt 字段：
+Add updatedAt field to `NamespaceMember.java`:
 
 ```java
 @Column(name = "updated_at", nullable = false)
 private LocalDateTime updatedAt;
 ```
 
-修改 `@PrePersist` 和添加 `@PreUpdate`：
+Modify `@PrePersist` and add `@PreUpdate`:
 
 ```java
 @PrePersist
@@ -385,15 +385,15 @@ void preUpdate() {
 }
 ```
 
-添加 getter：
+Add getter:
 
 ```java
 public LocalDateTime getUpdatedAt() { return updatedAt; }
 ```
 
-- [ ] **Step 4: 扩展 NamespaceRepository 接口**
+- [ ] **Step 4: Extend NamespaceRepository interface**
 
-在 `NamespaceRepository.java` 中添加新方法：
+Add new methods to `NamespaceRepository.java`:
 
 ```java
 import org.springframework.data.domain.Page;
@@ -402,9 +402,9 @@ import org.springframework.data.domain.Pageable;
 Page<Namespace> findByStatus(NamespaceStatus status, Pageable pageable);
 ```
 
-- [ ] **Step 5: 扩展 NamespaceMemberRepository 接口**
+- [ ] **Step 5: Extend NamespaceMemberRepository interface**
 
-在 `NamespaceMemberRepository.java` 中添加新方法：
+Add new methods to `NamespaceMemberRepository.java`:
 
 ```java
 import org.springframework.data.domain.Page;
@@ -414,9 +414,9 @@ Page<NamespaceMember> findByNamespaceId(Long namespaceId, Pageable pageable);
 void deleteByNamespaceIdAndUserId(Long namespaceId, String userId);
 ```
 
-- [ ] **Step 6: 更新 NamespaceJpaRepository 实现**
+- [ ] **Step 6: Update NamespaceJpaRepository implementation**
 
-在 `NamespaceJpaRepository.java` 中添加方法声明（Spring Data JPA 自动实现）：
+Add method declarations to `NamespaceJpaRepository.java` (Spring Data JPA auto-implements):
 
 ```java
 import org.springframework.data.domain.Page;
@@ -426,9 +426,9 @@ import com.iflytek.skillhub.domain.namespace.NamespaceStatus;
 Page<Namespace> findByStatus(NamespaceStatus status, Pageable pageable);
 ```
 
-- [ ] **Step 7: 更新 NamespaceMemberJpaRepository 实现**
+- [ ] **Step 7: Update NamespaceMemberJpaRepository implementation**
 
-在 `NamespaceMemberJpaRepository.java` 中添加方法声明：
+Add method declarations to `NamespaceMemberJpaRepository.java`:
 
 ```java
 import org.springframework.data.domain.Page;
@@ -438,7 +438,7 @@ Page<NamespaceMember> findByNamespaceId(Long namespaceId, Pageable pageable);
 void deleteByNamespaceIdAndUserId(Long namespaceId, String userId);
 ```
 
-- [ ] **Step 8: 编译验证**
+- [ ] **Step 8: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -459,13 +459,13 @@ git commit -m "feat(domain): complete Phase 1 entity fields for Namespace and Na
 - Update JPA repository implementations"
 ```
 
-### Task 3: SlugValidator — Slug 格式校验器
+### Task 3: SlugValidator — Slug Format Validator
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/namespace/SlugValidator.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/namespace/SlugValidatorTest.java`
 
-- [ ] **Step 1: 编写 SlugValidator 测试**
+- [ ] **Step 1: Write SlugValidator tests**
 
 ```bash
 mkdir -p server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/namespace
@@ -540,13 +540,13 @@ class SlugValidatorTest {
 EOF
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -Dtest=SlugValidatorTest`
 
 Expected: FAIL - SlugValidator class not found
 
-- [ ] **Step 3: 实现 SlugValidator**
+- [ ] **Step 3: Implement SlugValidator**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/namespace/SlugValidator.java << 'EOF'
@@ -595,7 +595,7 @@ public class SlugValidator {
 EOF
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [ ] **Step 4: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -Dtest=SlugValidatorTest`
 
@@ -623,7 +623,7 @@ git commit -m "feat(domain): add SlugValidator with comprehensive validation rul
 - Create: `server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/ObjectMetadata.java`
 - Create: `server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/StorageProperties.java`
 
-- [ ] **Step 1: 添加 SnakeYAML 和 AWS SDK 依赖到 skillhub-storage/pom.xml**
+- [ ] **Step 1: Add SnakeYAML and AWS SDK dependencies to skillhub-storage/pom.xml**
 
 ```bash
 cat > server/skillhub-storage/pom.xml << 'EOF'
@@ -664,7 +664,7 @@ cat > server/skillhub-storage/pom.xml << 'EOF'
 EOF
 ```
 
-- [ ] **Step 2: 创建 ObjectStorageService SPI 接口**
+- [ ] **Step 2: Create ObjectStorageService SPI interface**
 
 ```bash
 mkdir -p server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage
@@ -677,51 +677,51 @@ import java.util.List;
 public interface ObjectStorageService {
 
     /**
-     * 上传对象到存储
-     * @param key 对象 key
-     * @param data 数据流
-     * @param size 数据大小（字节）
-     * @param contentType MIME 类型
+     * Upload object to storage
+     * @param key Object key
+     * @param data Data stream
+     * @param size Data size (bytes)
+     * @param contentType MIME type
      */
     void putObject(String key, InputStream data, long size, String contentType);
 
     /**
-     * 获取对象数据流
-     * @param key 对象 key
-     * @return 数据流
+     * Get object data stream
+     * @param key Object key
+     * @return Data stream
      */
     InputStream getObject(String key);
 
     /**
-     * 删除单个对象
-     * @param key 对象 key
+     * Delete a single object
+     * @param key Object key
      */
     void deleteObject(String key);
 
     /**
-     * 批量删除对象
-     * @param keys 对象 key 列表
+     * Delete objects in batch
+     * @param keys List of object keys
      */
     void deleteObjects(List<String> keys);
 
     /**
-     * 检查对象是否存在
-     * @param key 对象 key
-     * @return 是否存在
+     * Check whether an object exists
+     * @param key Object key
+     * @return Whether it exists
      */
     boolean exists(String key);
 
     /**
-     * 获取对象元数据
-     * @param key 对象 key
-     * @return 元数据
+     * Get object metadata
+     * @param key Object key
+     * @return Metadata
      */
     ObjectMetadata getMetadata(String key);
 }
 EOF
 ```
 
-- [ ] **Step 3: 创建 ObjectMetadata record**
+- [ ] **Step 3: Create ObjectMetadata record
 
 ```bash
 cat > server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/ObjectMetadata.java << 'EOF'
@@ -737,7 +737,7 @@ public record ObjectMetadata(
 EOF
 ```
 
-- [ ] **Step 4: 创建 StorageProperties 配置类**
+- [ ] **Step 4: Create StorageProperties configuration class**
 
 ```bash
 cat > server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/StorageProperties.java << 'EOF'
@@ -784,7 +784,7 @@ public class StorageProperties {
 EOF
 ```
 
-- [ ] **Step 5: 编译验证**
+- [ ] **Step 5: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -803,13 +803,13 @@ git commit -m "feat(storage): add object storage SPI and configuration
 - Add SnakeYAML and AWS SDK v2 dependencies to pom.xml"
 ```
 
-### Task 5: LocalFileStorageService — 本地文件存储实现
+### Task 5: LocalFileStorageService — Local File Storage Implementation
 
 **Files:**
 - Create: `server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/LocalFileStorageService.java`
 - Test: `server/skillhub-storage/src/test/java/com/iflytek/skillhub/storage/LocalFileStorageServiceTest.java`
 
-- [ ] **Step 1: 编写 LocalFileStorageService 测试**
+- [ ] **Step 1: Write LocalFileStorageService tests**
 
 ```bash
 mkdir -p server/skillhub-storage/src/test/java/com/iflytek/skillhub/storage
@@ -900,13 +900,13 @@ class LocalFileStorageServiceTest {
 EOF
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-storage -Dtest=LocalFileStorageServiceTest`
 
 Expected: FAIL - LocalFileStorageService class not found
 
-- [ ] **Step 3: 实现 LocalFileStorageService**
+- [ ] **Step 3: Implement LocalFileStorageService**
 
 ```bash
 cat > server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/LocalFileStorageService.java << 'EOF'
@@ -996,7 +996,7 @@ public class LocalFileStorageService implements ObjectStorageService {
 EOF
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [ ] **Step 4: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-storage -Dtest=LocalFileStorageServiceTest`
 
@@ -1015,13 +1015,13 @@ git commit -m "feat(storage): implement LocalFileStorageService with atomic writ
 - Add comprehensive unit tests with @TempDir"
 ```
 
-### Task 6: S3StorageService — AWS S3 存储实现
+### Task 6: S3StorageService — AWS S3 Storage Implementation
 
 **Files:**
 - Create: `server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/S3StorageProperties.java`
 - Create: `server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/S3StorageService.java`
 
-- [ ] **Step 1: 创建 S3StorageProperties 配置类**
+- [ ] **Step 1: Create S3StorageProperties configuration class**
 
 ```bash
 cat > server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/S3StorageProperties.java << 'EOF'
@@ -1054,7 +1054,7 @@ public class S3StorageProperties {
 EOF
 ```
 
-- [ ] **Step 2: 实现 S3StorageService**
+- [ ] **Step 2: Implement S3StorageService
 
 ```bash
 cat > server/skillhub-storage/src/main/java/com/iflytek/skillhub/storage/S3StorageService.java << 'EOF'
@@ -1193,7 +1193,7 @@ public class S3StorageService implements ObjectStorageService {
 EOF
 ```
 
-- [ ] **Step 3: 编译验证**
+- [ ] **Step 3: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -1213,7 +1213,7 @@ git commit -m "feat(storage): implement S3StorageService with auto-create bucket
 - Activated via skillhub.storage.provider=s3"
 ```
 
-### Task 7: Skill Domain Entities — 技能实体和枚举
+### Task 7: Skill Domain Entities — Skill Entities and Enums
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/SkillStatus.java`
@@ -1228,7 +1228,7 @@ git commit -m "feat(storage): implement S3StorageService with auto-create bucket
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/SkillFileRepository.java`
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/SkillTagRepository.java`
 
-- [ ] **Step 1: 创建枚举类型**
+- [ ] **Step 1: Create enum types**
 
 ```bash
 mkdir -p server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill
@@ -1265,7 +1265,7 @@ public enum SkillVisibility {
 EOF
 ```
 
-- [ ] **Step 2: 创建 Skill 实体**
+- [ ] **Step 2: Create Skill entity**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/Skill.java << 'EOF'
@@ -1387,7 +1387,7 @@ public class Skill {
 EOF
 ```
 
-- [ ] **Step 3: 创建 SkillVersion 实体**
+- [ ] **Step 3: Create SkillVersion entity**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/SkillVersion.java << 'EOF'
@@ -1475,7 +1475,7 @@ public class SkillVersion {
 EOF
 ```
 
-- [ ] **Step 4: 创建 SkillFile 实体**
+- [ ] **Step 4: Create SkillFile entity**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/SkillFile.java << 'EOF'
@@ -1542,7 +1542,7 @@ public class SkillFile {
 EOF
 ```
 
-- [ ] **Step 5: 创建 SkillTag 实体**
+- [ ] **Step 5: Create SkillTag entity**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/SkillTag.java << 'EOF'
@@ -1610,7 +1610,7 @@ public class SkillTag {
 EOF
 ```
 
-- [ ] **Step 6: 创建 Repository 接口**
+- [ ] **Step 6: Create Repository interfaces**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/SkillRepository.java << 'EOF'
@@ -1676,7 +1676,7 @@ public interface SkillTagRepository {
 EOF
 ```
 
-- [ ] **Step 7: 编译验证**
+- [ ] **Step 7: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -1704,7 +1704,7 @@ git commit -m "feat(domain): add Skill domain entities and repository interfaces
 - Create: `server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/SkillFileJpaRepository.java`
 - Create: `server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/SkillTagJpaRepository.java`
 
-- [ ] **Step 1: 创建 SkillJpaRepository**
+- [ ] **Step 1: Create SkillJpaRepository
 
 ```bash
 cat > server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/SkillJpaRepository.java << 'EOF'
@@ -1740,7 +1740,7 @@ public interface SkillJpaRepository extends JpaRepository<Skill, Long>, SkillRep
 EOF
 ```
 
-- [ ] **Step 2: 创建 SkillVersionJpaRepository**
+- [ ] **Step 2: Create SkillVersionJpaRepository
 
 ```bash
 cat > server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/SkillVersionJpaRepository.java << 'EOF'
@@ -1766,7 +1766,7 @@ public interface SkillVersionJpaRepository extends JpaRepository<SkillVersion, L
 EOF
 ```
 
-- [ ] **Step 3: 创建 SkillFileJpaRepository**
+- [ ] **Step 3: Create SkillFileJpaRepository
 
 ```bash
 cat > server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/SkillFileJpaRepository.java << 'EOF'
@@ -1789,7 +1789,7 @@ public interface SkillFileJpaRepository extends JpaRepository<SkillFile, Long>, 
 EOF
 ```
 
-- [ ] **Step 4: 创建 SkillTagJpaRepository**
+- [ ] **Step 4: Create SkillTagJpaRepository
 
 ```bash
 cat > server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/SkillTagJpaRepository.java << 'EOF'
@@ -1813,7 +1813,7 @@ public interface SkillTagJpaRepository extends JpaRepository<SkillTag, Long>, Sk
 EOF
 ```
 
-- [ ] **Step 5: 编译验证**
+- [ ] **Step 5: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -1832,14 +1832,14 @@ git commit -m "feat(infra): add JPA repository implementations for Skill entitie
 - All extend domain repository interfaces and JpaRepository"
 ```
 
-### Task 9: SkillMetadataParser — SKILL.md Frontmatter 解析器
+### Task 9: SkillMetadataParser — SKILL.md Frontmatter Parser
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/metadata/SkillMetadata.java`
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/metadata/SkillMetadataParser.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/metadata/SkillMetadataParserTest.java`
 
-- [ ] **Step 1: 创建 SkillMetadata record**
+- [ ] **Step 1: Create SkillMetadata record
 
 ```bash
 mkdir -p server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/metadata
@@ -1858,7 +1858,7 @@ public record SkillMetadata(
 EOF
 ```
 
-- [ ] **Step 2: 编写 SkillMetadataParser 测试**
+- [ ] **Step 2: Write SkillMetadataParser tests**
 
 ```bash
 mkdir -p server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/metadata
@@ -1979,15 +1979,15 @@ class SkillMetadataParserTest {
 EOF
 ```
 
-- [ ] **Step 3: 运行测试确认失败**
+- [ ] **Step 3: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillMetadataParserTest`
 
 Expected: FAIL - SkillMetadataParser class not found
 
-- [ ] **Step 4: 确认 SnakeYAML 依赖在 skillhub-domain/pom.xml 中**
+- [ ] **Step 4: Confirm SnakeYAML dependency in skillhub-domain/pom.xml**
 
-在 `server/skillhub-domain/pom.xml` 中添加 SnakeYAML 依赖（如果尚未存在）：
+Append to `server/skillhub-domain/pom.xml` to add SnakeYAML dependency (if not already present):
 
 ```xml
 <dependency>
@@ -1996,7 +1996,7 @@ Expected: FAIL - SkillMetadataParser class not found
 </dependency>
 ```
 
-- [ ] **Step 5: 实现 SkillMetadataParser**
+- [ ] **Step 5: Implement SkillMetadataParser
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/metadata/SkillMetadataParser.java << 'EOF'
@@ -2012,10 +2012,10 @@ public class SkillMetadataParser {
     private static final String FRONTMATTER_DELIMITER = "---";
 
     /**
-     * 解析 SKILL.md 内容，提取 frontmatter 和正文
-     * @param skillMdContent SKILL.md 文件完整内容
-     * @return 解析后的元数据
-     * @throws IllegalArgumentException 如果格式不合法或缺少必需字段
+     * Parse SKILL.md content, extract frontmatter and body
+     * @param skillMdContent Full content of SKILL.md file
+     * @return Parsed metadata
+     * @throws IllegalArgumentException If the format is invalid or required fields are missing
      */
     @SuppressWarnings("unchecked")
     public SkillMetadata parse(String skillMdContent) {
@@ -2072,7 +2072,7 @@ public class SkillMetadataParser {
 EOF
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [ ] **Step 6: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillMetadataParserTest`
 
@@ -2093,7 +2093,7 @@ git commit -m "feat(domain): add SkillMetadataParser for SKILL.md frontmatter pa
 - Add comprehensive test coverage for valid/invalid inputs"
 ```
 
-### Task 10: SkillPackageValidator + PrePublishValidator — 技能包校验
+### Task 10: SkillPackageValidator + PrePublishValidator — Skill Package Validation
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/validation/PackageEntry.java`
@@ -2103,7 +2103,7 @@ git commit -m "feat(domain): add SkillMetadataParser for SKILL.md frontmatter pa
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/validation/NoOpPrePublishValidator.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/validation/SkillPackageValidatorTest.java`
 
-- [ ] **Step 1: 创建 PackageEntry record 和 ValidationResult record**
+- [ ] **Step 1: Create PackageEntry record and ValidationResult record**
 
 ```bash
 mkdir -p server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/validation
@@ -2141,7 +2141,7 @@ public record ValidationResult(boolean passed, List<String> errors) {
 EOF
 ```
 
-- [ ] **Step 2: 创建 PrePublishValidator 接口和 NoOpPrePublishValidator**
+- [ ] **Step 2: Create PrePublishValidator interface and NoOpPrePublishValidator**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/validation/PrePublishValidator.java << 'EOF'
@@ -2182,7 +2182,7 @@ public class NoOpPrePublishValidator implements PrePublishValidator {
 EOF
 ```
 
-- [ ] **Step 3: 编写 SkillPackageValidator 测试**
+- [ ] **Step 3: Write SkillPackageValidator tests**
 
 ```bash
 mkdir -p server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/validation
@@ -2292,13 +2292,13 @@ class SkillPackageValidatorTest {
 EOF
 ```
 
-- [ ] **Step 4: 运行测试确认失败**
+- [ ] **Step 4: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillPackageValidatorTest`
 
 Expected: FAIL - SkillPackageValidator class not found
 
-- [ ] **Step 5: 实现 SkillPackageValidator**
+- [ ] **Step 5: Implement SkillPackageValidator
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/validation/SkillPackageValidator.java << 'EOF'
@@ -2338,7 +2338,7 @@ public class SkillPackageValidator {
     public ValidationResult validate(List<PackageEntry> entries) {
         List<String> errors = new ArrayList<>();
 
-        // 1. SKILL.md 存在性
+        // 1. SKILL.md existence check
         PackageEntry skillMd = entries.stream()
                 .filter(e -> "SKILL.md".equals(e.path()))
                 .findFirst()
@@ -2349,7 +2349,7 @@ public class SkillPackageValidator {
             return ValidationResult.fail(errors);
         }
 
-        // 2. frontmatter 校验
+        // 2. Frontmatter validation
         try {
             SkillMetadataParser parser = new SkillMetadataParser();
             parser.parse(new String(skillMd.content()));
@@ -2357,21 +2357,21 @@ public class SkillPackageValidator {
             errors.add("SKILL.md frontmatter error: " + e.getMessage());
         }
 
-        // 3. 文件数量
+        // 3. File count
         if (entries.size() > maxFileCount) {
             errors.add("File count " + entries.size() + " exceeds maximum " + maxFileCount);
         }
 
-        // 4. 逐文件校验
+        // 4. Per-file validation
         long totalSize = 0;
         for (PackageEntry entry : entries) {
-            // 文件扩展名
+            // File extension
             String ext = getExtension(entry.path());
             if (ext != null && !ALLOWED_EXTENSIONS.contains(ext)) {
                 errors.add("File type " + ext + " is not allowed: " + entry.path());
             }
 
-            // 单文件大小
+            // Single file size
             if (entry.size() > maxFileSize) {
                 errors.add("File " + entry.path() + " size " + entry.size() + " exceeds maximum file size");
             }
@@ -2379,7 +2379,7 @@ public class SkillPackageValidator {
             totalSize += entry.size();
         }
 
-        // 5. 总包大小
+        // 5. Total package size
         if (totalSize > maxPackageSize) {
             errors.add("Total package size " + totalSize + " exceeds maximum " + maxPackageSize);
         }
@@ -2396,7 +2396,7 @@ public class SkillPackageValidator {
 EOF
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [ ] **Step 6: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillPackageValidatorTest`
 
@@ -2422,13 +2422,13 @@ git commit -m "feat(domain): add SkillPackageValidator and PrePublishValidator
 - Add comprehensive test coverage"
 ```
 
-### Task 11: VisibilityChecker — 可见性检查器
+### Task 11: VisibilityChecker — Visibility Checker
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/VisibilityChecker.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/VisibilityCheckerTest.java`
 
-- [ ] **Step 1: 编写 VisibilityChecker 测试**
+- [ ] **Step 1: Write VisibilityChecker tests**
 
 ```bash
 mkdir -p server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill
@@ -2514,13 +2514,13 @@ class VisibilityCheckerTest {
 EOF
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=VisibilityCheckerTest`
 
 Expected: FAIL - VisibilityChecker class not found
 
-- [ ] **Step 3: 实现 VisibilityChecker**
+- [ ] **Step 3: Implement VisibilityChecker**
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/VisibilityChecker.java << 'EOF'
@@ -2553,7 +2553,7 @@ public class VisibilityChecker {
 EOF
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [ ] **Step 4: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=VisibilityCheckerTest`
 
@@ -2572,7 +2572,7 @@ git commit -m "feat(domain): add VisibilityChecker for skill access control
 - Add comprehensive test coverage for all visibility scenarios"
 ```
 
-### Task 12: NamespaceService + NamespaceMemberService — 命名空间领域服务
+### Task 12: NamespaceService + NamespaceMemberService — Namespace Domain Services
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/namespace/NamespaceService.java`
@@ -2580,7 +2580,7 @@ git commit -m "feat(domain): add VisibilityChecker for skill access control
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/namespace/NamespaceServiceTest.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/namespace/NamespaceMemberServiceTest.java`
 
-- [ ] **Step 1: 编写 NamespaceService 测试**
+- [ ] **Step 1: Write NamespaceService tests**
 
 ```bash
 cat > server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/namespace/NamespaceServiceTest.java << 'EOF'
@@ -2677,7 +2677,7 @@ class NamespaceServiceTest {
 EOF
 ```
 
-- [ ] **Step 2: 编写 NamespaceMemberService 测试**
+- [ ] **Step 2: Write NamespaceMemberService tests**
 
 ```bash
 cat > server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/namespace/NamespaceMemberServiceTest.java << 'EOF'
@@ -2803,13 +2803,13 @@ class NamespaceMemberServiceTest {
 EOF
 ```
 
-- [ ] **Step 3: 运行测试确认失败**
+- [ ] **Step 3: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest="NamespaceServiceTest,NamespaceMemberServiceTest"`
 
 Expected: FAIL - NamespaceService/NamespaceMemberService class not found
 
-- [ ] **Step 4: 实现 NamespaceService**
+- [ ] **Step 4: Implement NamespaceService
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/namespace/NamespaceService.java << 'EOF'
@@ -2875,7 +2875,7 @@ public class NamespaceService {
 EOF
 ```
 
-- [ ] **Step 5: 实现 NamespaceMemberService**
+- [ ] **Step 5: Implement NamespaceMemberService
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/namespace/NamespaceMemberService.java << 'EOF'
@@ -2953,7 +2953,7 @@ public class NamespaceMemberService {
 EOF
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [ ] **Step 6: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest="NamespaceServiceTest,NamespaceMemberServiceTest"`
 
@@ -2975,7 +2975,7 @@ git commit -m "feat(domain): add NamespaceService and NamespaceMemberService
 - Add comprehensive unit tests with Mockito"
 ```
 
-### Task 13: NamespaceController + 成员管理 API
+### Task 13: NamespaceController + Member Management API
 
 **Files:**
 - Create: `server/skillhub-app/src/main/java/com/iflytek/skillhub/dto/NamespaceRequest.java`
@@ -2985,7 +2985,7 @@ git commit -m "feat(domain): add NamespaceService and NamespaceMemberService
 - Create: `server/skillhub-app/src/main/java/com/iflytek/skillhub/controller/portal/NamespaceController.java`
 - Test: `server/skillhub-app/src/test/java/com/iflytek/skillhub/controller/NamespaceControllerTest.java`
 
-- [ ] **Step 1: 创建 DTO 类**
+- [ ] **Step 1: Create DTO classes**
 
 ```bash
 mkdir -p server/skillhub-app/src/main/java/com/iflytek/skillhub/dto
@@ -3066,7 +3066,7 @@ public record MemberResponse(
 EOF
 ```
 
-- [ ] **Step 2: 创建 NamespaceController**
+- [ ] **Step 2: Create NamespaceController
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/controller/portal/NamespaceController.java << 'EOF'
@@ -3197,9 +3197,9 @@ public class NamespaceController {
 EOF
 ```
 
-- [ ] **Step 3: 补充 NamespaceMemberService.listMembers 方法**
+- [ ] **Step 3: Add NamespaceMemberService.listMembers method**
 
-在 `NamespaceMemberService.java` 中添加：
+Add to `NamespaceMemberService.java`:
 
 ```java
 import org.springframework.data.domain.Page;
@@ -3210,7 +3210,7 @@ public Page<NamespaceMember> listMembers(Long namespaceId, Pageable pageable) {
 }
 ```
 
-- [ ] **Step 4: 编译验证**
+- [ ] **Step 4: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -3230,14 +3230,14 @@ git commit -m "feat(api): add NamespaceController with CRUD and member managemen
 - Add listMembers method to NamespaceMemberService"
 ```
 
-### Task 14: Domain Events — 领域事件定义
+### Task 14: Domain Events — Domain Event Definitions
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/event/SkillPublishedEvent.java`
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/event/SkillDownloadedEvent.java`
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/event/SkillStatusChangedEvent.java`
 
-- [ ] **Step 1: 创建领域事件 record**
+- [ ] **Step 1: Create domain event records**
 
 ```bash
 mkdir -p server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/event
@@ -3263,7 +3263,7 @@ public record SkillStatusChangedEvent(Long skillId, SkillStatus oldStatus, Skill
 EOF
 ```
 
-- [ ] **Step 2: 编译验证**
+- [ ] **Step 2: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -3280,13 +3280,13 @@ git commit -m "feat(domain): add domain event records
 - SkillStatusChangedEvent: triggered on skill status transitions"
 ```
 
-### Task 15: SkillPublishService — 技能发布服务
+### Task 15: SkillPublishService — Skill Publish Service
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service/SkillPublishService.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/service/SkillPublishServiceTest.java`
 
-- [ ] **Step 1: 编写 SkillPublishService 测试**
+- [ ] **Step 1: Write SkillPublishService tests**
 
 ```bash
 mkdir -p server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/service
@@ -3411,13 +3411,13 @@ class SkillPublishServiceTest {
 EOF
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillPublishServiceTest`
 
 Expected: FAIL - SkillPublishService class not found
 
-- [ ] **Step 3: 实现 SkillPublishService**
+- [ ] **Step 3: Implement SkillPublishService
 
 ```bash
 mkdir -p server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service
@@ -3482,7 +3482,7 @@ public class SkillPublishService {
 JAVAEOF
 ```
 
-在同一文件末尾追加 `publishFromEntries` 方法（使用 `cat >>` 追加）：
+Append `publishFromEntries` method to the end of the same file (use `cat >>` to append):
 
 ```bash
 cat >> server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service/SkillPublishService.java << 'JAVAEOF'
@@ -3492,23 +3492,23 @@ cat >> server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/se
                                             List<PackageEntry> entries,
                                             String publisherId,
                                             SkillVisibility visibility) {
-        // ① 解析 namespace
+        // ① Parse namespace
         Namespace ns = namespaceRepository.findBySlug(namespaceSlug)
                 .orElseThrow(() -> new IllegalArgumentException("Namespace not found: " + namespaceSlug));
 
-        // ② 权限校验
+        // ② Permission check
         memberRepository.findByNamespaceIdAndUserId(ns.getId(), publisherId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "User " + publisherId + " is not a member of namespace " + namespaceSlug));
 
-        // ③ 技能包校验
+        // ③ Skill package validation
         ValidationResult validationResult = packageValidator.validate(entries);
         if (!validationResult.passed()) {
             throw new IllegalArgumentException("Package validation failed: " +
                     String.join("; ", validationResult.errors()));
         }
 
-        // ④ 解析 SKILL.md
+        // ④ Parse SKILL.md
         PackageEntry skillMdEntry = entries.stream()
                 .filter(e -> "SKILL.md".equals(e.path()))
                 .findFirst().orElseThrow();
@@ -3523,7 +3523,7 @@ cat >> server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/se
                     String.join("; ", preResult.errors()));
         }
 
-        // ⑥ 创建/关联 skill
+        // ⑥ Create/associate skill
         Skill skill = skillRepository.findByNamespaceIdAndSlug(ns.getId(), metadata.name())
                 .orElseGet(() -> {
                     Skill s = new Skill(ns.getId(), metadata.name(), publisherId, visibility);
@@ -3533,13 +3533,13 @@ cat >> server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/se
                     return skillRepository.save(s);
                 });
 
-        // ⑦ 版本冲突检查
+        // ⑦ Version conflict check
         versionRepository.findBySkillIdAndVersion(skill.getId(), metadata.version())
                 .ifPresent(v -> {
                     throw new IllegalArgumentException("Version " + metadata.version() + " already exists");
                 });
 
-        // ⑧ 创建版本
+        // ⑧ Create version
         SkillVersion version = new SkillVersion(skill.getId(), metadata.version(), publisherId);
         version.setStatus(SkillVersionStatus.PUBLISHED);
         version.setPublishedAt(LocalDateTime.now());
@@ -3547,7 +3547,7 @@ cat >> server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/se
         version.setParsedMetadataJson(metadata.frontmatter().toString());
         version = versionRepository.save(version);
 
-        // ⑨ 写入对象存储 + 持久化文件记录
+        // ⑨ Write to object storage + persist file records
         long totalSize = 0;
         List<SkillFile> files = new ArrayList<>();
         for (PackageEntry entry : entries) {
@@ -3564,19 +3564,19 @@ cat >> server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/se
         }
         fileRepository.saveAll(files);
 
-        // ⑩ 更新版本统计
+        // ⑩ Update version stats
         version.setFileCount(files.size());
         version.setTotalSize(totalSize);
         versionRepository.save(version);
 
-        // ⑪ 更新 skill
+        // ⑪ Update skill
         skill.setLatestVersionId(version.getId());
         skill.setDisplayName(metadata.name());
         skill.setSummary(metadata.description());
         skill.setUpdatedBy(publisherId);
         skillRepository.save(skill);
 
-        // ⑫ 发布事件
+        // ⑫ Publish event
         eventPublisher.publishEvent(
                 new SkillPublishedEvent(skill.getId(), version.getId(), publisherId));
 
@@ -3596,7 +3596,7 @@ cat >> server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/se
 JAVAEOF
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [ ] **Step 4: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillPublishServiceTest`
 
@@ -3619,13 +3619,13 @@ git commit -m "feat(domain): add SkillPublishService with full publish flow
 - Publish SkillPublishedEvent for async processing"
 ```
 
-### Task 16: SkillQueryService — 技能查询服务
+### Task 16: SkillQueryService — Skill Query Service
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service/SkillQueryService.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/service/SkillQueryServiceTest.java`
 
-- [ ] **Step 1: 编写 SkillQueryService 测试**
+- [ ] **Step 1: Write SkillQueryService tests**
 
 ```bash
 cat > server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/service/SkillQueryServiceTest.java << 'EOF'
@@ -3747,13 +3747,13 @@ class SkillQueryServiceTest {
 EOF
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillQueryServiceTest`
 
 Expected: FAIL - SkillQueryService class not found
 
-- [ ] **Step 3: 实现 SkillQueryService**
+- [ ] **Step 3: Implement SkillQueryService
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service/SkillQueryService.java << 'EOF'
@@ -3873,7 +3873,7 @@ public class SkillQueryService {
 EOF
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [ ] **Step 4: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillQueryServiceTest`
 
@@ -3894,13 +3894,13 @@ git commit -m "feat(domain): add SkillQueryService for skill detail/list/files/v
 - Add unit tests with Mockito"
 ```
 
-### Task 17: SkillDownloadService — 技能下载服务
+### Task 17: SkillDownloadService — Skill Download Service
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service/SkillDownloadService.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/service/SkillDownloadServiceTest.java`
 
-- [ ] **Step 1: 编写 SkillDownloadService 测试**
+- [ ] **Step 1: Write SkillDownloadService tests**
 
 ```bash
 cat > server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/service/SkillDownloadServiceTest.java << 'EOF'
@@ -3994,13 +3994,13 @@ class SkillDownloadServiceTest {
 EOF
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillDownloadServiceTest`
 
 Expected: FAIL - SkillDownloadService class not found
 
-- [ ] **Step 3: 实现 SkillDownloadService**
+- [ ] **Step 3: Implement SkillDownloadService
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service/SkillDownloadService.java << 'EOF'
@@ -4106,7 +4106,7 @@ public class SkillDownloadService {
 EOF
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [ ] **Step 4: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillDownloadServiceTest`
 
@@ -4127,13 +4127,13 @@ git commit -m "feat(domain): add SkillDownloadService with latest/version/tag do
 - Add unit tests with Mockito"
 ```
 
-### Task 18: SkillTagService — 标签管理服务
+### Task 18: SkillTagService — Tag Management Service
 
 **Files:**
 - Create: `server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service/SkillTagService.java`
 - Test: `server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/service/SkillTagServiceTest.java`
 
-- [ ] **Step 1: 编写 SkillTagService 测试**
+- [ ] **Step 1: Write SkillTagService tests**
 
 ```bash
 cat > server/skillhub-domain/src/test/java/com/iflytek/skillhub/domain/skill/service/SkillTagServiceTest.java << 'EOF'
@@ -4243,13 +4243,13 @@ class SkillTagServiceTest {
 EOF
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: Run tests and confirm failure**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillTagServiceTest`
 
 Expected: FAIL - SkillTagService class not found
 
-- [ ] **Step 3: 实现 SkillTagService**
+- [ ] **Step 3: Implement SkillTagService
 
 ```bash
 cat > server/skillhub-domain/src/main/java/com/iflytek/skillhub/domain/skill/service/SkillTagService.java << 'EOF'
@@ -4338,7 +4338,7 @@ public class SkillTagService {
 EOF
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [ ] **Step 4: Run tests and confirm pass**
 
 Run: `cd server && ./mvnw test -pl skillhub-domain -Dtest=SkillTagServiceTest`
 
@@ -4359,7 +4359,7 @@ git commit -m "feat(domain): add SkillTagService for tag CRUD
 - Add unit tests with Mockito"
 ```
 
-### Task 19: Skill Controllers — 发布/查询/下载/标签 API
+### Task 19: Skill Controllers — Publish/Query/Download/Tag APIs
 
 **Files:**
 - Create: `server/skillhub-app/src/main/java/com/iflytek/skillhub/dto/PublishRequest.java`
@@ -4375,7 +4375,7 @@ git commit -m "feat(domain): add SkillTagService for tag CRUD
 - Create: `server/skillhub-app/src/main/java/com/iflytek/skillhub/controller/portal/SkillController.java`
 - Create: `server/skillhub-app/src/main/java/com/iflytek/skillhub/controller/portal/SkillTagController.java`
 
-- [ ] **Step 1: 创建 Skill 相关 DTO**
+- [ ] **Step 1: Create Skill-related DTOs**
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/dto/PublishResponse.java << 'EOF'
@@ -4456,7 +4456,7 @@ public record TagResponse(
 EOF
 ```
 
-- [ ] **Step 2: 创建 CliPublishController**
+- [ ] **Step 2: Create CliPublishController
 
 ```bash
 mkdir -p server/skillhub-app/src/main/java/com/iflytek/skillhub/controller/cli
@@ -4527,7 +4527,7 @@ public class CliPublishController {
 EOF
 ```
 
-- [ ] **Step 3: 创建 SkillPublishController（Web 端发布）**
+- [ ] **Step 3: Create SkillPublishController (web-side publish)**
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/controller/portal/SkillPublishController.java << 'EOF'
@@ -4597,7 +4597,7 @@ public class SkillPublishController {
 EOF
 ```
 
-- [ ] **Step 4: 创建 SkillController（公开查询/下载 API）**
+- [ ] **Step 4: Create SkillController (public query/download API)**
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/controller/portal/SkillController.java << 'EOF'
@@ -4718,7 +4718,7 @@ public class SkillController {
 EOF
 ```
 
-- [ ] **Step 5: 创建 SkillTagController**
+- [ ] **Step 5: Create SkillTagController
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/controller/portal/SkillTagController.java << 'EOF'
@@ -4780,7 +4780,7 @@ public class SkillTagController {
 EOF
 ```
 
-- [ ] **Step 6: 编译验证**
+- [ ] **Step 6: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -4801,7 +4801,7 @@ git commit -m "feat(api): add Skill controllers for publish/query/download/tag
   SkillFileResponse, TagRequest, TagResponse DTOs"
 ```
 
-### Task 20: Search SPI + PostgreSQL Full-Text 实现
+### Task 20: Search SPI + PostgreSQL Full-Text Implementation
 
 **Files:**
 - Create: `server/skillhub-search/src/main/java/com/iflytek/skillhub/search/SearchIndexService.java`
@@ -4816,7 +4816,7 @@ git commit -m "feat(api): add Skill controllers for publish/query/download/tag
 - Create: `server/skillhub-search/src/main/java/com/iflytek/skillhub/search/postgres/PostgresSearchRebuildService.java`
 - Create: `server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/SkillSearchDocumentJpaRepository.java`
 
-- [ ] **Step 1: 创建 Search SPI 接口和 record**
+- [ ] **Step 1: Create Search SPI interfaces and records**
 
 ```bash
 mkdir -p server/skillhub-search/src/main/java/com/iflytek/skillhub/search
@@ -4899,7 +4899,7 @@ public interface SearchRebuildService {
 EOF
 ```
 
-- [ ] **Step 2: 创建 SkillSearchDocumentEntity JPA 实体**
+- [ ] **Step 2: Create SkillSearchDocumentEntity JPA entity**
 
 ```bash
 cat > server/skillhub-infra/src/main/java/com/iflytek/skillhub/infra/jpa/SkillSearchDocumentEntity.java << 'EOF'
@@ -4994,7 +4994,7 @@ public interface SkillSearchDocumentJpaRepository extends JpaRepository<SkillSea
 EOF
 ```
 
-- [ ] **Step 3: 实现 PostgresFullTextIndexService**
+- [ ] **Step 3: Implement PostgresFullTextIndexService
 
 ```bash
 mkdir -p server/skillhub-search/src/main/java/com/iflytek/skillhub/search/postgres
@@ -5058,7 +5058,7 @@ public class PostgresFullTextIndexService implements SearchIndexService {
 EOF
 ```
 
-- [ ] **Step 4: 实现 PostgresFullTextQueryService**
+- [ ] **Step 4: Implement PostgresFullTextQueryService
 
 ```bash
 cat > server/skillhub-search/src/main/java/com/iflytek/skillhub/search/postgres/PostgresFullTextQueryService.java << 'EOF'
@@ -5098,21 +5098,21 @@ public class PostgresFullTextQueryService implements SearchQueryService {
 
         StringBuilder where = new StringBuilder("WHERE sd.status = 'ACTIVE' ");
 
-        // 关键词匹配
+        // Keyword matching
         if (query.keyword() != null && !query.keyword().isBlank()) {
             where.append("AND sd.search_vector @@ plainto_tsquery('simple', ?").append(paramIdx).append(") ");
             params.add(query.keyword());
             paramIdx++;
         }
 
-        // 命名空间过滤
+        // Namespace filtering
         if (query.namespaceId() != null) {
             where.append("AND sd.namespace_id = ?").append(paramIdx).append(" ");
             params.add(query.namespaceId());
             paramIdx++;
         }
 
-        // 可见性过滤
+        // Visibility filtering
         SearchVisibilityScope scope = query.visibilityScope();
         if (scope.userId() == null) {
             where.append("AND sd.visibility = 'PUBLIC' ");
@@ -5149,7 +5149,7 @@ public class PostgresFullTextQueryService implements SearchQueryService {
         sql.append(where);
         countSql.append(where);
 
-        // 排序
+        // Sorting
         String sortBy = query.sortBy() != null ? query.sortBy() : "relevance";
         switch (sortBy) {
             case "downloads" -> sql.append("ORDER BY s.download_count DESC ");
@@ -5188,7 +5188,7 @@ public class PostgresFullTextQueryService implements SearchQueryService {
 EOF
 ```
 
-- [ ] **Step 5: 实现 PostgresSearchRebuildService**
+- [ ] **Step 5: Implement PostgresSearchRebuildService
 
 ```bash
 cat > server/skillhub-search/src/main/java/com/iflytek/skillhub/search/postgres/PostgresSearchRebuildService.java << 'EOF'
@@ -5280,7 +5280,7 @@ public class PostgresSearchRebuildService implements SearchRebuildService {
 EOF
 ```
 
-- [ ] **Step 6: 创建 SkillSearchAppService + SearchController**
+- [ ] **Step 6: Create SkillSearchAppService + SearchController
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/service/SkillSearchAppService.java << 'EOF'
@@ -5411,7 +5411,7 @@ public class SkillSearchController {
 EOF
 ```
 
-- [ ] **Step 7: 编译验证**
+- [ ] **Step 7: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -5436,14 +5436,14 @@ git commit -m "feat(search): add PostgreSQL full-text search implementation
 - Add SkillSearchController: GET /api/v1/skills?q=&namespace=&sort=&page=&size="
 ```
 
-### Task 21: 异步事件监听器 + AsyncConfig
+### Task 21: Async Event Listeners + AsyncConfig
 
 **Files:**
 - Create: `server/skillhub-app/src/main/java/com/iflytek/skillhub/config/AsyncConfig.java`
 - Create: `server/skillhub-search/src/main/java/com/iflytek/skillhub/search/event/SearchIndexEventListener.java`
 - Create: `server/skillhub-search/src/main/java/com/iflytek/skillhub/search/event/DownloadCountEventListener.java`
 
-- [ ] **Step 1: 创建 AsyncConfig**
+- [ ] **Step 1: Create AsyncConfig
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/config/AsyncConfig.java << 'EOF'
@@ -5478,7 +5478,7 @@ public class AsyncConfig {
 EOF
 ```
 
-- [ ] **Step 2: 创建 SearchIndexEventListener**
+- [ ] **Step 2: Create SearchIndexEventListener
 
 ```bash
 mkdir -p server/skillhub-search/src/main/java/com/iflytek/skillhub/search/event
@@ -5533,7 +5533,7 @@ public class SearchIndexEventListener {
 EOF
 ```
 
-- [ ] **Step 3: 创建 DownloadCountEventListener**
+- [ ] **Step 3: Create DownloadCountEventListener
 
 ```bash
 cat > server/skillhub-search/src/main/java/com/iflytek/skillhub/search/event/DownloadCountEventListener.java << 'EOF'
@@ -5568,7 +5568,7 @@ public class DownloadCountEventListener {
 EOF
 ```
 
-- [ ] **Step 4: 编译验证**
+- [ ] **Step 4: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -5587,7 +5587,7 @@ git commit -m "feat(event): add async event listeners and thread pool config
 - Use @TransactionalEventListener for search, @EventListener for download count"
 ```
 
-### Task 22: 应用层精细限流 — Redis 滑动窗口
+### Task 22: Fine-Grained Application Rate Limiting — Redis Sliding Window
 
 **Files:**
 - Create: `server/skillhub-app/src/main/java/com/iflytek/skillhub/ratelimit/RateLimit.java`
@@ -5597,7 +5597,7 @@ git commit -m "feat(event): add async event listeners and thread pool config
 - Create: `server/skillhub-app/src/main/resources/ratelimit.lua`
 - Test: `server/skillhub-app/src/test/java/com/iflytek/skillhub/ratelimit/RateLimitInterceptorTest.java`
 
-- [ ] **Step 1: 创建 RateLimit 注解**
+- [ ] **Step 1: Create RateLimit annotation**
 
 ```bash
 mkdir -p server/skillhub-app/src/main/java/com/iflytek/skillhub/ratelimit
@@ -5620,7 +5620,7 @@ public @interface RateLimit {
 EOF
 ```
 
-- [ ] **Step 2: 创建 Redis Lua 脚本**
+- [ ] **Step 2: Create Redis Lua script**
 
 ```bash
 cat > server/skillhub-app/src/main/resources/ratelimit.lua << 'EOF'
@@ -5653,7 +5653,7 @@ end
 EOF
 ```
 
-- [ ] **Step 3: 创建 SlidingWindowRateLimiter**
+- [ ] **Step 3: Create SlidingWindowRateLimiter
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/ratelimit/SlidingWindowRateLimiter.java << 'EOF'
@@ -5704,7 +5704,7 @@ public class SlidingWindowRateLimiter {
 EOF
 ```
 
-- [ ] **Step 4: 创建 RateLimitInterceptor**
+- [ ] **Step 4: Create RateLimitInterceptor
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/ratelimit/RateLimitInterceptor.java << 'EOF'
@@ -5770,7 +5770,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 EOF
 ```
 
-- [ ] **Step 5: 创建 WebMvcRateLimitConfig**
+- [ ] **Step 5: Create WebMvcRateLimitConfig
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/config/WebMvcRateLimitConfig.java << 'EOF'
@@ -5799,24 +5799,24 @@ public class WebMvcRateLimitConfig implements WebMvcConfigurer {
 EOF
 ```
 
-- [ ] **Step 6: 在关键 Controller 方法上添加 @RateLimit 注解**
+- [ ] **Step 6: Add @RateLimit annotation to key Controller methods**
 
-在 `SkillSearchController.searchSkills` 方法上添加：
+Add to the `SkillSearchController.searchSkills` method:
 ```java
 @RateLimit(category = "search", authenticated = 60, anonymous = 20, windowSeconds = 60)
 ```
 
-在 `SkillController.downloadLatest` 和 `downloadVersion` 方法上添加：
+Add to `SkillController.downloadLatest` and `downloadVersion` methods:
 ```java
 @RateLimit(category = "download", authenticated = 120, anonymous = 30, windowSeconds = 60)
 ```
 
-在 `CliPublishController.publish` 和 `SkillPublishController.publish` 方法上添加：
+Add to `CliPublishController.publish` and `SkillPublishController.publish` methods:
 ```java
 @RateLimit(category = "publish", authenticated = 10, anonymous = 0, windowSeconds = 3600)
 ```
 
-- [ ] **Step 7: 编译验证**
+- [ ] **Step 7: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -5838,18 +5838,18 @@ git commit -m "feat(ratelimit): add Redis sliding window rate limiting
 - Apply limits: search 60/20, download 120/30, publish 10/0 per window"
 ```
 
-### Task 23: 应用配置更新 + SkillPackageValidator Bean 注册
+### Task 23: Application Config Update + SkillPackageValidator Bean Registration
 
 **Files:**
 - Modify: `server/skillhub-app/src/main/resources/application.yml`
 - Modify: `server/skillhub-app/src/main/resources/application-local.yml`
 
-- [ ] **Step 1: 更新 application.yml 添加 Phase 2 配置**
+- [ ] **Step 1: Update application.yml to add Phase 2 configuration**
 
-在 `application.yml` 中追加以下配置：
+Append the following configuration to `application.yml`:
 
 ```yaml
-# Phase 2 配置
+# Phase 2 configuration
 skillhub:
   storage:
     provider: local
@@ -5869,9 +5869,9 @@ spring:
       max-request-size: 20MB
 ```
 
-- [ ] **Step 2: 更新 application-local.yml 添加 S3/MinIO 配置**
+- [ ] **Step 2: Update application-local.yml to add S3/MinIO configuration**
 
-在 `application-local.yml` 中追加：
+Append to `application-local.yml`:
 
 ```yaml
 skillhub:
@@ -5887,9 +5887,9 @@ skillhub:
       region: us-east-1
 ```
 
-- [ ] **Step 3: 注册 SkillPackageValidator 和 VisibilityChecker 为 Spring Bean**
+- [ ] **Step 3: Register SkillPackageValidator and VisibilityChecker as Spring Beans**
 
-创建配置类：
+Create configuration class:
 
 ```bash
 cat > server/skillhub-app/src/main/java/com/iflytek/skillhub/config/DomainBeanConfig.java << 'EOF'
@@ -5922,7 +5922,7 @@ public class DomainBeanConfig {
 EOF
 ```
 
-- [ ] **Step 4: 编译验证**
+- [ ] **Step 4: Verify compilation**
 
 Run: `cd server && ./mvnw clean compile -DskipTests`
 
@@ -5943,23 +5943,23 @@ git commit -m "feat(config): add Phase 2 application configuration
 - Register SkillPackageValidator, SkillMetadataParser, VisibilityChecker beans"
 ```
 
-### Task 24: 全量编译 + 测试验证
+### Task 24: Full Compilation + Test Verification
 
-- [ ] **Step 1: 全量编译**
+- [ ] **Step 1: Full compilation**
 
 Run: `cd server && ./mvnw clean compile`
 
 Expected: BUILD SUCCESS
 
-- [ ] **Step 2: 运行所有单元测试**
+- [ ] **Step 2: Run all unit tests**
 
 Run: `cd server && ./mvnw test`
 
 Expected: All tests pass
 
-- [ ] **Step 3: 修复编译或测试错误（如有）**
+- [ ] **Step 3: Fix any compilation or test errors**
 
-根据错误信息逐一修复，直到全部通过。
+Fix errors one by one based on error messages until all pass.
 
 - [ ] **Step 4: Final Commit**
 
@@ -5978,37 +5978,37 @@ Phase 2 Chunk 1 backend complete:
 - Redis sliding window rate limiting"
 ```
 
-### Chunk 1 验收标准
+### Chunk 1 Acceptance Criteria
 
-运行以下命令验证 Chunk 1 完成：
+Run the following commands to verify Chunk 1 is complete:
 
 ```bash
-# 1. 启动依赖服务
+# 1. Start dependency services
 make dev
 
-# 2. 运行所有后端测试
+# 2. Run all backend tests
 cd server && ./mvnw test
 # Expected: BUILD SUCCESS, all tests pass
 
-# 3. 启动后端应用
+# 3. Start backend application
 cd server && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local &
 sleep 15
 
-# 4. 验证 Phase 2 数据库迁移
+# 4. Verify Phase 2 database migration
 docker compose exec postgres psql -U skillhub -d skillhub -c "\dt skill*"
-# Expected: 列出 skill, skill_version, skill_file, skill_tag, skill_search_document 五张表
+# Expected: Lists skill, skill_version, skill_file, skill_tag, skill_search_document — five tables
 
-# 5. 验证命名空间 CRUD（创建命名空间）
+# 5. Verify namespace CRUD (create namespace)
 curl -s -X POST http://localhost:8080/api/v1/namespaces \
   -H "Content-Type: application/json" \
   -d '{"slug":"test-ns","displayName":"Test NS","description":"test"}' | jq .
 # Expected: {"code":0,"data":{"slug":"test-ns","displayName":"Test NS",...}}
 
-# 6. 验证命名空间查询
+# 6. Verify namespace query
 curl -s http://localhost:8080/api/v1/namespaces/test-ns | jq .
 # Expected: {"code":0,"data":{"slug":"test-ns",...}}
 
-# 7. 验证 CLI 发布接口（创建测试 zip）
+# 7. Verify CLI publish endpoint (create test zip)
 mkdir -p /tmp/test-skill && cat > /tmp/test-skill/SKILL.md << 'SKILLEOF'
 ---
 name: hello-world
@@ -6026,87 +6026,87 @@ curl -s -X POST http://localhost:8080/api/v1/cli/publish \
   -F "visibility=PUBLIC" | jq .
 # Expected: {"code":0,"data":{"slug":"hello-world","version":"1.0.0","status":"PUBLISHED",...}}
 
-# 8. 验证技能详情查询
+# 8. Verify skill detail query
 curl -s http://localhost:8080/api/v1/skills/test-ns/hello-world | jq .
 # Expected: {"code":0,"data":{"slug":"hello-world","displayName":"hello-world",...}}
 
-# 9. 验证版本列表
+# 9. Verify version list
 curl -s http://localhost:8080/api/v1/skills/test-ns/hello-world/versions | jq .
 # Expected: {"code":0,"data":{"content":[{"version":"1.0.0","status":"PUBLISHED",...}],...}}
 
-# 10. 验证文件清单
+# 10. Verify file listing
 curl -s "http://localhost:8080/api/v1/skills/test-ns/hello-world/versions/1.0.0/files" | jq .
 # Expected: {"code":0,"data":[{"filePath":"SKILL.md",...}]}
 
-# 11. 验证下载最新版本
+# 11. Verify download of latest version
 curl -s -o /tmp/download-test.zip -w "%{http_code}" \
   http://localhost:8080/api/v1/skills/test-ns/hello-world/download
-# Expected: 200, /tmp/download-test.zip 为有效 zip 文件
+# Expected: 200, /tmp/download-test.zip is a valid zip file
 
-# 12. 验证标签管理（创建标签）
+# 12. Verify tag management (create tag)
 curl -s -X PUT http://localhost:8080/api/v1/skills/test-ns/hello-world/tags/stable \
   -H "Content-Type: application/json" \
   -d '{"targetVersion":"1.0.0"}' | jq .
 # Expected: {"code":0,"data":{"tagName":"stable","version":"1.0.0",...}}
 
-# 13. 验证标签列表
+# 13. Verify tag list
 curl -s http://localhost:8080/api/v1/skills/test-ns/hello-world/tags | jq .
-# Expected: 包含 "stable" 和虚拟 "latest" 标签
+# Expected: Contains "stable" and virtual "latest" tags
 
-# 14. 验证按标签下载
+# 14. Verify download by tag
 curl -s -o /tmp/download-tag.zip -w "%{http_code}" \
   http://localhost:8080/api/v1/skills/test-ns/hello-world/tags/stable/download
 # Expected: 200
 
-# 15. 验证搜索 API
+# 15. Verify search API
 curl -s "http://localhost:8080/api/v1/skills?q=hello&sort=relevance&page=0&size=20" | jq .
 # Expected: {"code":0,"data":{"items":[{"slug":"hello-world",...}],"total":1,...}}
 
-# 16. 验证搜索空关键词（列表模式）
+# 16. Verify search with empty keyword (list mode)
 curl -s "http://localhost:8080/api/v1/skills?sort=newest&page=0&size=20" | jq .
 # Expected: {"code":0,"data":{"items":[...],"total":...}}
 
-# 17. 验证限流（连续请求触发 429）
+# 17. Verify rate limiting (consecutive requests trigger 429)
 for i in $(seq 1 25); do
   code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080/api/v1/skills?q=test")
   echo "Request $i: $code"
 done
-# Expected: 前 20 次返回 200，之后返回 429（匿名 search 限额 20 次/60s）
+# Expected: First 20 requests return 200, then 429 (anonymous search limit: 20/60s)
 
-# 18. 验证限流 header
+# 18. Verify rate limit headers
 curl -s -D - "http://localhost:8080/api/v1/skills?q=test" 2>&1 | grep -i "x-ratelimit\|retry-after"
-# Expected: X-RateLimit-Remaining header 存在
+# Expected: X-RateLimit-Remaining header is present
 
-# 19. 停止应用并清理
+# 19. Stop application and clean up
 kill %1 2>/dev/null
 rm -rf /tmp/test-skill /tmp/test-skill.zip /tmp/download-test.zip /tmp/download-tag.zip
 make dev-down
 ```
 
-Chunk 1 产出：Phase 2 全部后端功能 — 数据库迁移 + 对象存储 + 命名空间管理 + 技能发布/查询/下载 + 标签管理 + PostgreSQL 全文搜索 + 异步事件 + Redis 滑动窗口限流。
+Chunk 1 output: All Phase 2 backend features — database migration + object storage + namespace management + skill publish/query/download + tag management + PostgreSQL full-text search + async events + Redis sliding window rate limiting.
 
 ---
 
-## Chunk 2: 前端全部
+## Chunk 2: Full Frontend
 
-本块实现 Phase 2 全部前端页面：首页、搜索页、命名空间主页、技能详情页、版本历史页、发布页、我的技能、我的命名空间、成员管理。
+This chunk implements all Phase 2 frontend pages: home, search, namespace home, skill detail, version history, publish, my skills, my namespaces, and member management.
 
-### 前端文件结构映射
+### Frontend File Structure Mapping
 
 ```
 web/src/
 ├── api/
-│   └── client.ts                    # 已有，扩展新 API 类型
+│   └── client.ts                    # Existing, extend with new API types
 ├── pages/
-│   ├── search.tsx                   # 搜索页
-│   ├── namespace.tsx                # 命名空间主页
-│   ├── skill-detail.tsx             # 技能详情页
-│   ├── skill-versions.tsx           # 版本历史页
+│   ├── search.tsx                   # Search page
+│   ├── namespace.tsx                # Namespace home page
+│   ├── skill-detail.tsx             # Skill detail page
+│   ├── skill-versions.tsx           # Version history page
 │   └── dashboard/
-│       ├── skills.tsx               # 我的技能
-│       ├── publish.tsx              # 发布技能
-│       ├── namespaces.tsx           # 我的命名空间
-│       └── namespace-members.tsx    # 成员管理
+│       ├── skills.tsx               # My skills
+│       ├── publish.tsx              # Publish skill
+│       ├── namespaces.tsx           # My namespaces
+│       └── namespace-members.tsx    # Member management
 ├── features/
 │   ├── skill/
 │   │   ├── skill-card.tsx
@@ -6147,21 +6147,21 @@ web/src/
 │   │   └── namespace-badge.tsx
 │   └── hooks/
 │       └── use-debounce.ts
-└── routes/                          # TanStack Router 路由配置
+└── routes/                          # TanStack Router route configuration
 ```
 
-### Task 25: 前端依赖安装 + API 类型定义
+### Task 25: Frontend Dependency Installation + API Type Definitions
 
 **Files:**
 - Modify: `web/package.json`
 - Create: `web/src/api/types.ts`
 - Create: `web/src/shared/hooks/use-debounce.ts`
 
-- [ ] **Step 1: 安装新依赖**
+- [ ] **Step 1: Install new dependencies**
 
 Run: `cd web && npm install react-markdown rehype-highlight react-dropzone zustand`
 
-- [ ] **Step 2: 创建 API 类型定义**
+- [ ] **Step 2: Create API type definitions**
 
 ```bash
 cat > web/src/api/types.ts << 'EOF'
@@ -6267,7 +6267,7 @@ export interface PublishResult {
 EOF
 ```
 
-- [ ] **Step 3: 创建 useDebounce hook**
+- [ ] **Step 3: Create useDebounce hook
 
 ```bash
 mkdir -p web/src/shared/hooks
@@ -6298,7 +6298,7 @@ git commit -m "feat(web): add Phase 2 dependencies and API type definitions
 - Add useDebounce hook for search input"
 ```
 
-### Task 26: 共享组件 — Pagination, EmptyState, SkeletonLoader, CopyButton, NamespaceBadge
+### Task 26: Shared Components — Pagination, EmptyState, SkeletonLoader, CopyButton, NamespaceBadge
 
 **Files:**
 - Create: `web/src/shared/components/pagination.tsx`
@@ -6307,7 +6307,7 @@ git commit -m "feat(web): add Phase 2 dependencies and API type definitions
 - Create: `web/src/shared/components/copy-button.tsx`
 - Create: `web/src/shared/components/namespace-badge.tsx`
 
-- [ ] **Step 1: 创建 Pagination 组件**
+- [ ] **Step 1: Create Pagination component**
 
 ```tsx
 // web/src/shared/components/pagination.tsx
@@ -6323,18 +6323,18 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
   return (
     <div className="flex items-center gap-2 justify-center mt-6">
       <Button variant="outline" size="sm" disabled={page <= 0}
-        onClick={() => onPageChange(page - 1)}>上一页</Button>
+        onClick={() => onPageChange(page - 1)}>Previous</Button>
       <span className="text-sm text-muted-foreground">
         {page + 1} / {totalPages}
       </span>
       <Button variant="outline" size="sm" disabled={page >= totalPages - 1}
-        onClick={() => onPageChange(page + 1)}>下一页</Button>
+        onClick={() => onPageChange(page + 1)}>Next</Button>
     </div>
   );
 }
 ```
 
-- [ ] **Step 2: 创建 EmptyState 组件**
+- [ ] **Step 2: Create EmptyState component**
 
 ```tsx
 // web/src/shared/components/empty-state.tsx
@@ -6356,7 +6356,7 @@ export function EmptyState({ title, description, action }: EmptyStateProps) {
 }
 ```
 
-- [ ] **Step 3: 创建 SkeletonLoader 组件**
+- [ ] **Step 3: Create SkeletonLoader component**
 
 ```tsx
 // web/src/shared/components/skeleton-loader.tsx
@@ -6379,7 +6379,7 @@ export function SkeletonList({ count = 6 }: { count?: number }) {
 }
 ```
 
-- [ ] **Step 4: 创建 CopyButton 组件**
+- [ ] **Step 4: Create CopyButton component**
 
 ```tsx
 // web/src/shared/components/copy-button.tsx
@@ -6391,7 +6391,7 @@ interface CopyButtonProps {
   label?: string;
 }
 
-export function CopyButton({ text, label = '复制' }: CopyButtonProps) {
+export function CopyButton({ text, label = 'Copy' }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -6402,13 +6402,13 @@ export function CopyButton({ text, label = '复制' }: CopyButtonProps) {
 
   return (
     <Button variant="outline" size="sm" onClick={handleCopy}>
-      {copied ? '已复制' : label}
+      {copied ? 'Copied' : label}
     </Button>
   );
 }
 ```
 
-- [ ] **Step 5: 创建 NamespaceBadge 组件**
+- [ ] **Step 5: Create NamespaceBadge component**
 
 ```tsx
 // web/src/shared/components/namespace-badge.tsx
@@ -6442,7 +6442,7 @@ git commit -m "feat(web): add shared UI components
 - NamespaceBadge with global(green)/team(blue) styling"
 ```
 
-### Task 27: TanStack Query Hooks — 数据获取层
+### Task 27: TanStack Query Hooks — Data Fetching Layer
 
 **Files:**
 - Create: `web/src/features/skill/use-skill-detail.ts`
@@ -6454,7 +6454,7 @@ git commit -m "feat(web): add shared UI components
 - Create: `web/src/features/namespace/use-my-namespaces.ts`
 - Create: `web/src/features/publish/use-publish-skill.ts`
 
-- [ ] **Step 1: 创建 Skill 查询 hooks**
+- [ ] **Step 1: Create Skill query hooks**
 
 ```typescript
 // web/src/features/skill/use-skill-detail.ts
@@ -6522,7 +6522,7 @@ export function useSearchSkills(params: SearchParams) {
 }
 ```
 
-- [ ] **Step 2: 创建 Namespace 查询 hooks**
+- [ ] **Step 2: Create Namespace query hooks**
 
 ```typescript
 // web/src/features/namespace/use-namespace-detail.ts
@@ -6572,7 +6572,7 @@ export function useMyNamespaces() {
 }
 ```
 
-- [ ] **Step 3: 创建 Publish mutation hook**
+- [ ] **Step 3: Create Publish mutation hook
 
 ```typescript
 // web/src/features/publish/use-publish-skill.ts
@@ -6615,7 +6615,7 @@ git commit -m "feat(web): add TanStack Query hooks for all API endpoints
 - placeholderData for search to avoid flicker"
 ```
 
-### Task 28: Feature 组件 — SkillCard, MarkdownRenderer, FileTree, SearchBar, InstallCommand
+### Task 28: Feature Components — SkillCard, MarkdownRenderer, FileTree, SearchBar, InstallCommand
 
 **Files:**
 - Create: `web/src/features/skill/skill-card.tsx`
@@ -6626,7 +6626,7 @@ git commit -m "feat(web): add TanStack Query hooks for all API endpoints
 - Create: `web/src/features/search/search-filters.tsx`
 - Create: `web/src/features/publish/upload-zone.tsx`
 
-- [ ] **Step 1: 创建 SkillCard**
+- [ ] **Step 1: Create SkillCard
 
 ```tsx
 // web/src/features/skill/skill-card.tsx
@@ -6653,7 +6653,7 @@ export function SkillCard({ skill }: { skill: SkillSummary }) {
 }
 ```
 
-- [ ] **Step 2: 创建 MarkdownRenderer**
+- [ ] **Step 2: Create MarkdownRenderer
 
 ```tsx
 // web/src/features/skill/markdown-renderer.tsx
@@ -6671,7 +6671,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
 }
 ```
 
-- [ ] **Step 3: 创建 FileTree**
+- [ ] **Step 3: Create FileTree
 
 ```tsx
 // web/src/features/skill/file-tree.tsx
@@ -6702,7 +6702,7 @@ export function FileTree({ files, onSelect }: {
 }
 ```
 
-- [ ] **Step 4: 创建 InstallCommand**
+- [ ] **Step 4: Create InstallCommand
 
 ```tsx
 // web/src/features/skill/install-command.tsx
@@ -6719,7 +6719,7 @@ export function InstallCommand({ namespace, slug }: { namespace: string; slug: s
 }
 ```
 
-- [ ] **Step 5: 创建 SearchBar**
+- [ ] **Step 5: Create SearchBar
 
 ```tsx
 // web/src/features/search/search-bar.tsx
@@ -6740,14 +6740,14 @@ export function SearchBar({ defaultValue = '', className = '' }: {
   return (
     <form onSubmit={handleSubmit} className={className}>
       <input type="text" value={query} onChange={e => setQuery(e.target.value)}
-        placeholder="搜索技能..."
+        placeholder="Search skills..."
         className="w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
     </form>
   );
 }
 ```
 
-- [ ] **Step 6: 创建 UploadZone**
+- [ ] **Step 6: Create UploadZone
 
 ```tsx
 // web/src/features/publish/upload-zone.tsx
@@ -6770,7 +6770,7 @@ export function UploadZone({ onFileSelect }: { onFileSelect: (file: File) => voi
       <input {...getInputProps()} />
       <div className="text-3xl mb-2">📦</div>
       <p className="text-sm text-muted-foreground">
-        {isDragActive ? '释放文件...' : '拖拽 .zip 文件到此处，或点击选择'}
+        {isDragActive ? 'Drop files here...' : 'Drag .zip file here, or click to select'}
       </p>
     </div>
   );
@@ -6791,15 +6791,15 @@ git commit -m "feat(web): add feature components
 - UploadZone with react-dropzone drag-and-drop"
 ```
 
-### Task 29: 首页 + 搜索页
+### Task 29: Home Page + Search Page
 
 **Files:**
-- Modify: `web/src/pages/home.tsx` (或已有首页文件)
+- Modify: `web/src/pages/home.tsx` (or existing home page file)
 - Create: `web/src/pages/search.tsx`
 
-- [ ] **Step 1: 实现首页**
+- [ ] **Step 1: Implement home page**
 
-首页包含：Hero 区域（标题 + 搜索框）、三栏卡片区（精选/热门/最新各 top 6）。
+The home page includes: Hero section (title + search box), three-column card area (top 6 featured/popular/newest).
 
 ```tsx
 // web/src/pages/home.tsx
@@ -6827,17 +6827,17 @@ export default function HomePage() {
     <div className="max-w-6xl mx-auto px-4">
       <section className="py-16 text-center">
         <h1 className="text-4xl font-bold mb-3">SkillHub</h1>
-        <p className="text-lg text-muted-foreground mb-8">发现、分享和管理 AI 技能</p>
+        <p className="text-lg text-muted-foreground mb-8">Discover, share, and manage AI skills</p>
         <SearchBar className="max-w-xl mx-auto" />
       </section>
-      <SkillSection title="热门下载" sort="downloads" />
-      <SkillSection title="最新发布" sort="newest" />
+      <SkillSection title="Most Downloaded" sort="downloads" />
+      <SkillSection title="Newest Published" sort="newest" />
     </div>
   );
 }
 ```
 
-- [ ] **Step 2: 实现搜索页**
+- [ ] **Step 2: Implement search page**
 
 ```tsx
 // web/src/pages/search.tsx
@@ -6865,13 +6865,13 @@ export default function SearchPage() {
       <div className="flex items-center gap-4 mb-6">
         <select value={sort} onChange={e => {/* update URL */}}
           className="rounded border px-3 py-1.5 text-sm">
-          <option value="relevance">相关度</option>
-          <option value="downloads">下载量</option>
-          <option value="newest">最新</option>
+          <option value="relevance">Relevance</option>
+          <option value="downloads">Downloads</option>
+          <option value="newest">Newest</option>
         </select>
       </div>
       {isLoading ? <SkeletonList /> : data?.items.length === 0 ? (
-        <EmptyState title="未找到结果" description="尝试其他关键词" />
+        <EmptyState title="No results found" description="Try different keywords" />
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -6897,7 +6897,7 @@ git commit -m "feat(web): add home page and search page
 - Loading skeletons and empty state handling"
 ```
 
-### Task 30: 命名空间主页 + 技能详情页
+### Task 30: Namespace Home Page + Skill Detail Page
 
 **Files:**
 - Create: `web/src/pages/namespace.tsx`
@@ -6905,7 +6905,7 @@ git commit -m "feat(web): add home page and search page
 - Create: `web/src/features/skill/skill-detail-view.tsx`
 - Create: `web/src/features/namespace/namespace-header.tsx`
 
-- [ ] **Step 1: 创建 NamespaceHeader 组件**
+- [ ] **Step 1: Create NamespaceHeader component**
 
 ```tsx
 // web/src/features/namespace/namespace-header.tsx
@@ -6936,7 +6936,7 @@ export function NamespaceHeader({ namespace }: { namespace: Namespace }) {
 }
 ```
 
-- [ ] **Step 2: 实现命名空间主页**
+- [ ] **Step 2: Implement namespace home page**
 
 ```tsx
 // web/src/pages/namespace.tsx
@@ -6956,13 +6956,13 @@ export default function NamespacePage() {
   });
 
   if (nsLoading) return <SkeletonList />;
-  if (!ns) return <EmptyState title="命名空间不存在" />;
+  if (!ns) return <EmptyState title="Namespace not found" />;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <NamespaceHeader namespace={ns} />
       {skillsLoading ? <SkeletonList /> : skills?.items.length === 0 ? (
-        <EmptyState title="暂无技能" description="该命名空间下还没有发布技能" />
+        <EmptyState title="No skills yet" description="No skills have been published in this namespace" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {skills?.items.map(s => <SkillCard key={s.id} skill={s} />)}
@@ -6973,7 +6973,7 @@ export default function NamespacePage() {
 }
 ```
 
-- [ ] **Step 3: 创建 SkillDetailView 组件**
+- [ ] **Step 3: Create SkillDetailView component**
 
 ```tsx
 // web/src/features/skill/skill-detail-view.tsx
@@ -7001,7 +7001,7 @@ export function SkillDetailView({ skill, namespace, files, readmeContent }: {
               className={`pb-2 text-sm font-medium border-b-2 ${
                 tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
               }`}>
-              {t === 'readme' ? 'README' : t === 'files' ? '文件' : '版本'}
+              {t === 'readme' ? 'README' : t === 'files' ? 'Files' : 'Versions'}
             </button>
           ))}
         </div>
@@ -7011,21 +7011,21 @@ export function SkillDetailView({ skill, namespace, files, readmeContent }: {
       <aside className="w-72 shrink-0">
         <div className="space-y-4">
           <div>
-            <div className="text-sm text-muted-foreground mb-1">版本</div>
+            <div className="text-sm text-muted-foreground mb-1">Version</div>
             <div className="font-medium">v{skill.latestVersion}</div>
           </div>
           <div>
-            <div className="text-sm text-muted-foreground mb-1">下载量</div>
+            <div className="text-sm text-muted-foreground mb-1">Downloads</div>
             <div className="font-medium">{skill.downloadCount}</div>
           </div>
           <div>
-            <div className="text-sm text-muted-foreground mb-1">命名空间</div>
+            <div className="text-sm text-muted-foreground mb-1">Namespace</div>
             <NamespaceBadge slug={namespace} />
           </div>
           <InstallCommand namespace={namespace} slug={skill.slug} />
           <a href={`/api/v1/skills/${namespace}/${skill.slug}/download`}
             className="block w-full text-center rounded-lg bg-primary text-primary-foreground py-2 text-sm font-medium hover:bg-primary/90">
-            下载
+            Download
           </a>
         </div>
       </aside>
@@ -7034,7 +7034,7 @@ export function SkillDetailView({ skill, namespace, files, readmeContent }: {
 }
 ```
 
-- [ ] **Step 4: 实现技能详情页**
+- [ ] **Step 4: Implement skill detail page**
 
 ```tsx
 // web/src/pages/skill-detail.tsx
@@ -7074,7 +7074,7 @@ git commit -m "feat(web): add namespace page and skill detail page
 - NamespaceHeader and SkillDetailView components"
 ```
 
-### Task 31: Dashboard 页面 — 发布/我的技能/命名空间管理
+### Task 31: Dashboard Pages — Publish/My Skills/Namespace Management
 
 **Files:**
 - Create: `web/src/pages/dashboard/publish.tsx`
@@ -7085,7 +7085,7 @@ git commit -m "feat(web): add namespace page and skill detail page
 - Create: `web/src/features/namespace/create-namespace-dialog.tsx`
 - Create: `web/src/features/namespace/member-table.tsx`
 
-- [ ] **Step 1: 创建 PublishForm 组件**
+- [ ] **Step 1: Create PublishForm component**
 
 ```tsx
 // web/src/features/publish/publish-form.tsx
@@ -7116,39 +7116,39 @@ export function PublishForm() {
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium mb-2">命名空间</label>
+        <label className="block text-sm font-medium mb-2">Namespace</label>
         <select value={namespace} onChange={e => setNamespace(e.target.value)}
           className="w-full rounded border px-3 py-2 text-sm">
-          <option value="">选择命名空间</option>
+          <option value="">Select namespace</option>
           {namespaces?.map(ns => (
             <option key={ns.id} value={ns.slug}>{ns.displayName} (@{ns.slug})</option>
           ))}
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-2">上传技能包</label>
+        <label className="block text-sm font-medium mb-2">Upload skill package</label>
         <UploadZone onFileSelect={setFile} />
-        {file && <p className="text-sm text-muted-foreground mt-2">已选择: {file.name}</p>}
+        {file && <p className="text-sm text-muted-foreground mt-2">Selected: {file.name}</p>}
       </div>
       <div>
-        <label className="block text-sm font-medium mb-2">可见性</label>
+        <label className="block text-sm font-medium mb-2">Visibility</label>
         <select value={visibility} onChange={e => setVisibility(e.target.value)}
           className="w-full rounded border px-3 py-2 text-sm">
-          <option value="PUBLIC">公开</option>
-          <option value="NAMESPACE_ONLY">命名空间内可见</option>
-          <option value="PRIVATE">私有</option>
+          <option value="PUBLIC">Public</option>
+          <option value="NAMESPACE_ONLY">Namespace only</option>
+          <option value="PRIVATE">Private</option>
         </select>
       </div>
       <Button onClick={handlePublish} disabled={!file || !namespace || publish.isPending}
         className="w-full">
-        {publish.isPending ? '发布中...' : '确认发布'}
+        {publish.isPending ? 'Publishing...' : 'Confirm Publish'}
       </Button>
     </div>
   );
 }
 ```
 
-- [ ] **Step 2: 实现发布页**
+- [ ] **Step 2: Implement publish page**
 
 ```tsx
 // web/src/pages/dashboard/publish.tsx
@@ -7157,14 +7157,14 @@ import { PublishForm } from '@/features/publish/publish-form';
 export default function PublishPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">发布技能</h1>
+      <h1 className="text-2xl font-bold mb-6">Publish Skill</h1>
       <PublishForm />
     </div>
   );
 }
 ```
 
-- [ ] **Step 3: 实现我的技能页**
+- [ ] **Step 3: Implement my skills page**
 
 ```tsx
 // web/src/pages/dashboard/skills.tsx
@@ -7179,12 +7179,12 @@ export default function MySkillsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">我的技能</h1>
-        <Link to="/dashboard/publish"><Button>发布技能</Button></Link>
+        <h1 className="text-2xl font-bold">My Skills</h1>
+        <Link to="/dashboard/publish"><Button>Publish Skill</Button></Link>
       </div>
-      {isLoading ? <p>加载中...</p> : data?.items.length === 0 ? (
-        <EmptyState title="还没有技能" description="发布你的第一个技能吧"
-          action={<Link to="/dashboard/publish"><Button>去发布</Button></Link>} />
+      {isLoading ? <p>Loading...</p> : data?.items.length === 0 ? (
+        <EmptyState title="No skills yet" description="Publish your first skill"
+          action={<Link to="/dashboard/publish"><Button>Go Publish</Button></Link>} />
       ) : (
         <div className="border rounded-lg divide-y">
           {data?.items.map(skill => (
@@ -7206,7 +7206,7 @@ export default function MySkillsPage() {
 }
 ```
 
-- [ ] **Step 4: 实现我的命名空间页**
+- [ ] **Step 4: Implement my namespaces page**
 
 ```tsx
 // web/src/pages/dashboard/namespaces.tsx
@@ -7222,11 +7222,11 @@ export default function MyNamespacesPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">我的命名空间</h1>
-        <Button>创建命名空间</Button>
+        <h1 className="text-2xl font-bold">My Namespaces</h1>
+        <Button>Create Namespace</Button>
       </div>
-      {isLoading ? <p>加载中...</p> : namespaces?.length === 0 ? (
-        <EmptyState title="还没有命名空间" description="创建一个团队命名空间" />
+      {isLoading ? <p>Loading...</p> : namespaces?.length === 0 ? (
+        <EmptyState title="No namespaces yet" description="Create a team namespace" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {namespaces?.map(ns => (
@@ -7246,7 +7246,7 @@ export default function MyNamespacesPage() {
 }
 ```
 
-- [ ] **Step 5: 创建 MemberTable 组件**
+- [ ] **Step 5: Create MemberTable component**
 
 ```tsx
 // web/src/features/namespace/member-table.tsx
@@ -7263,10 +7263,10 @@ export function MemberTable({ members, onRemove, onRoleChange }: {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/50">
-            <th className="text-left px-4 py-2">用户 ID</th>
-            <th className="text-left px-4 py-2">角色</th>
-            <th className="text-left px-4 py-2">加入时间</th>
-            <th className="text-right px-4 py-2">操作</th>
+            <th className="text-left px-4 py-2">User ID</th>
+            <th className="text-left px-4 py-2">Role</th>
+            <th className="text-left px-4 py-2">Joined At</th>
+            <th className="text-right px-4 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -7287,7 +7287,7 @@ export function MemberTable({ members, onRemove, onRoleChange }: {
               <td className="px-4 py-2 text-right">
                 {m.role !== 'OWNER' && (
                   <Button variant="ghost" size="sm" onClick={() => onRemove?.(m.userId)}>
-                    移除
+                    Remove
                   </Button>
                 )}
               </td>
@@ -7300,7 +7300,7 @@ export function MemberTable({ members, onRemove, onRoleChange }: {
 }
 ```
 
-- [ ] **Step 6: 实现成员管理页**
+- [ ] **Step 6: Implement member management page**
 
 ```tsx
 // web/src/pages/dashboard/namespace-members.tsx
@@ -7320,8 +7320,8 @@ export default function NamespaceMembersPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       {ns && <NamespaceHeader namespace={ns} />}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">成员管理</h2>
-        <Button size="sm">添加成员</Button>
+        <h2 className="text-lg font-semibold">Member Management</h2>
+        <Button size="sm">Add Member</Button>
       </div>
       {members && <MemberTable members={members.items} />}
     </div>
@@ -7343,14 +7343,14 @@ git commit -m "feat(web): add dashboard pages
 - PublishForm, MemberTable components"
 ```
 
-### Task 32: TanStack Router 路由配置
+### Task 32: TanStack Router Route Configuration
 
 **Files:**
-- Modify: `web/src/routes/` (路由配置文件)
+- Modify: `web/src/routes/` (route configuration files)
 
-- [ ] **Step 1: 配置 Phase 2 路由**
+- [ ] **Step 1: Configure Phase 2 routes**
 
-根据项目已有的 TanStack Router 配置模式，添加以下路由：
+Add the following routes following the existing TanStack Router configuration pattern:
 
 ```
 /                                      → HomePage
@@ -7358,20 +7358,20 @@ git commit -m "feat(web): add dashboard pages
 /@{namespace}                          → NamespacePage
 /@{namespace}/{slug}                   → SkillDetailPage
 /@{namespace}/{slug}/versions          → SkillVersionsPage
-/dashboard/skills                      → MySkillsPage (需登录)
-/dashboard/publish                     → PublishPage (需登录)
-/dashboard/namespaces                  → MyNamespacesPage (需登录)
-/dashboard/namespaces/{slug}/members   → NamespaceMembersPage (需登录)
+/dashboard/skills                      → MySkillsPage (requires login)
+/dashboard/publish                     → PublishPage (requires login)
+/dashboard/namespaces                  → MyNamespacesPage (requires login)
+/dashboard/namespaces/{slug}/members   → NamespaceMembersPage (requires login)
 ```
 
-门户区（`/`, `/search`, `/@*`）匿名可访问。
-Dashboard 区需登录（复用 Phase 1 路由守卫）。
+Portal area (`/`, `/search`, `/@*`) accessible anonymously.
+Dashboard area requires login (reuse Phase 1 route guards).
 
-- [ ] **Step 2: 验证路由可访问**
+- [ ] **Step 2: Verify routes are accessible**
 
 Run: `cd web && npm run build`
 
-Expected: BUILD SUCCESS，无路由错误
+Expected: BUILD SUCCESS, no route errors
 
 - [ ] **Step 3: Commit**
 
@@ -7384,23 +7384,23 @@ git commit -m "feat(web): configure Phase 2 routes
 - Dashboard routes require authentication (Phase 1 guard)"
 ```
 
-### Task 33: 前端全量构建 + 验证
+### Task 33: Full Frontend Build + Verification
 
-- [ ] **Step 1: 全量构建**
+- [ ] **Step 1: Full build**
 
 Run: `cd web && npm run build`
 
 Expected: BUILD SUCCESS
 
-- [ ] **Step 2: 类型检查**
+- [ ] **Step 2: Type check**
 
 Run: `cd web && npx tsc --noEmit`
 
-Expected: 无类型错误
+Expected: No type errors
 
-- [ ] **Step 3: 修复构建或类型错误（如有）**
+- [ ] **Step 3: Fix any build or type errors**
 
-根据错误信息逐一修复。
+Fix errors one by one based on error messages.
 
 - [ ] **Step 4: Final Commit**
 
@@ -7420,14 +7420,14 @@ Phase 2 Chunk 2 frontend complete:
 - Feature components: SkillCard, MarkdownRenderer, FileTree, InstallCommand, SearchBar"
 ```
 
-### Chunk 2 验收标准
+### Chunk 2 Acceptance Criteria
 
-1. ✅ 首页展示热门/最新技能，搜索框可跳转搜索页
-2. ✅ 搜索页：关键词搜索 + 排序 + 分页，URL 驱动
-3. ✅ 命名空间主页：展示空间信息 + 技能列表
-4. ✅ 技能详情页：Markdown 渲染 + 文件树 + 安装命令 + 下载
-5. ✅ 发布页：拖拽上传 + 选择命名空间/可见性 + 确认发布
-6. ✅ 我的技能：列表展示 + 跳转详情
-7. ✅ 命名空间管理：创建 + 成员管理（添加/移除/角色变更）
-8. ✅ 匿名用户可浏览/搜索/下载 PUBLIC 技能
-9. ✅ 前端构建通过，无类型错误
+1. ✅ Home page shows popular/newest skills with search box linking to search page
+2. ✅ Search page: keyword search + sorting + pagination, URL-driven
+3. ✅ Namespace home page: shows namespace info + skill list
+4. ✅ Skill detail page: Markdown rendering + file tree + install command + download
+5. ✅ Publish page: drag-and-drop upload + select namespace/visibility + confirm publish
+6. ✅ My skills: list display + link to detail
+7. ✅ Namespace management: create + member management (add/remove/role change)
+8. ✅ Anonymous users can browse/search/download PUBLIC skills
+9. ✅ Frontend build passes with no type errors

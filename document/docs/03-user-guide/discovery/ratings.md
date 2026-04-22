@@ -1,30 +1,30 @@
 ---
-title: 评分与收藏
+title: Ratings & Stars
 sidebar_position: 3
-description: 技能评分和收藏功能
+description: Skill rating and starring features
 ---
 
-# 评分与收藏
+# Ratings & Stars
 
-## 收藏技能
+## Starring a Skill
 
-点击技能详情页的"收藏"按钮可收藏技能。
+Click the "Star" button on a skill's detail page to star it.
 
-查看已收藏的技能：
-- Web：进入"我的收藏"
-- CLI：`clawhub stars`
+To view your starred skills:
+- Web: Go to "My Stars"
+- CLI: `clawhub stars`
 
-## 技能评分
+## Rating a Skill
 
-可对技能进行 1-5 分评分：
+You can rate a skill on a scale of 1 to 5:
 
-1. 进入技能详情页
-2. 点击评分区域
-3. 选择评分（1-5 星）
-4. 提交评分
+1. Go to the skill detail page
+2. Click the rating area
+3. Select a rating (1–5 stars)
+4. Submit your rating
 
-可随时修改自己的评分。
+You can update your rating at any time.
 
-## 下一步
+## Next Steps
 
-- [团队命名空间](../collaboration/namespaces) - 团队协作
+- [Team Namespaces](../collaboration/namespaces) - Team collaboration

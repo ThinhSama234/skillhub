@@ -3,28 +3,28 @@
 Date: 2026-03-18
 Status: current code-aligned reference
 
-本文件是 skill 生命周期的单一规范入口。结论以当前代码实现为准，并已经同步到领域模型、业务流程、API、前端、搜索和兼容层文档。
+This document is the single authoritative reference for the skill lifecycle. Conclusions are based on the current code implementation and have been synchronized to the domain model, business flows, API, frontend, search, and compatibility layer documentation.
 
-## 1. 设计原则
+## 1. Design Principles
 
-- skill 生命周期不再被建模为一个混杂状态机，而是拆分为容器状态、版本状态、审核工作流状态和可见性覆盖层
-- 前端不再从 `status + hidden + latestVersionStatus + viewingVersionStatus` 拼装状态，而统一消费后端 lifecycle projection
-- destructive action 和 reversible action 必须分离；`withdraw-review` 只表示撤回提审，不表示删除版本
-- 对外仍可保留 `latest` 协议词汇，但内部语义必须严格等价于 latest published
+- The skill lifecycle is no longer modeled as a mixed state machine. Instead it is split into container state, version state, review workflow state, and a visibility override layer.
+- The frontend no longer assembles state from `status + hidden + latestVersionStatus + viewingVersionStatus`. It uniformly consumes the backend lifecycle projection.
+- Destructive actions and reversible actions must be separated. `withdraw-review` means only withdrawing a pending review submission, not deleting a version.
+- The `latest` protocol vocabulary may still be exposed externally, but its internal semantics must be strictly equivalent to "latest published."
 
-## 2. 状态模型
+## 2. State Model
 
-### 2.1 Skill 容器状态
+### 2.1 Skill Container State
 
 - `ACTIVE`
 - `ARCHIVED`
 
-说明：
+Notes:
 
-- `hidden` 是独立治理覆盖层，不属于 `Skill.status`
-- `SkillStatus.HIDDEN` 不再视为有效生命周期语义
+- `hidden` is an independent governance override layer and is not part of `Skill.status`.
+- `SkillStatus.HIDDEN` is no longer treated as a valid lifecycle semantic.
 
-### 2.2 SkillVersion 版本状态
+### 2.2 SkillVersion Version State
 
 - `DRAFT`
 - `PENDING_REVIEW`
@@ -32,124 +32,124 @@ Status: current code-aligned reference
 - `REJECTED`
 - `YANKED`
 
-状态含义：
+State meanings:
 
-- `DRAFT`：可再次提交审核或删除的非公开版本
-- `PENDING_REVIEW`：冻结待审版本
-- `PUBLISHED`：当前可分发版本
-- `REJECTED`：审核拒绝后保留的版本
-- `YANKED`：曾发布、现已撤回分发的版本
+- `DRAFT`: A non-public version that can be re-submitted for review or deleted.
+- `PENDING_REVIEW`: A frozen version awaiting review.
+- `PUBLISHED`: The currently distributable version.
+- `REJECTED`: A version retained after being rejected by review.
+- `YANKED`: A version that was previously published and has since been withdrawn from distribution.
 
-### 2.3 ReviewTask 审核工作流状态
+### 2.3 ReviewTask Workflow State
 
 - `PENDING`
 - `APPROVED`
 - `REJECTED`
 
-`ReviewTask` 仅表达审核流程，不再被前端当作展示态来源。
+`ReviewTask` expresses only the review process and is no longer used by the frontend as a display state source.
 
-## 3. 核心语义
+## 3. Core Semantics
 
 ### 3.1 Latest
 
-- `Skill.latestVersionId` 的唯一语义是 latest published pointer
-- 它只能指向 `PUBLISHED` 版本
-- 若 skill 没有任何已发布版本，则允许为 `null`
-- `latest` 系统保留标签自动跟随该指针
+- The sole semantic of `Skill.latestVersionId` is the latest published pointer.
+- It can only point to a `PUBLISHED` version.
+- If the skill has no published versions, it is allowed to be `null`.
+- The `latest` system-reserved tag automatically follows this pointer.
 
 ### 3.2 Lifecycle Projection
 
-详情页、我的技能、我的收藏、搜索等读模型统一基于以下 projection：
+Read models for the detail page, my skills, my favorites, search, and similar views are all based on the following projection:
 
-- `headlineVersion`：当前页面主展示版本
-- `publishedVersion`：最新已发布版本
-- `ownerPreviewVersion`：owner / namespace 管理者可见的待审核预览版本
-- `resolutionMode`：`PUBLISHED` / `OWNER_PREVIEW` / `NONE`
+- `headlineVersion`: The primary version displayed on the current page.
+- `publishedVersion`: The latest published version.
+- `ownerPreviewVersion`: A pending-review preview version visible to the owner or namespace manager.
+- `resolutionMode`: `PUBLISHED` / `OWNER_PREVIEW` / `NONE`
 
-约束：
+Constraints:
 
-- 公开浏览、安装、下载、搜索只认 `publishedVersion`
-- owner 详情页只有在不存在 `publishedVersion` 时，才允许 `headlineVersion = ownerPreviewVersion`
-- promotion、compat latest、默认下载等公开分发行为都只能绑定 `publishedVersion`
+- Public browsing, installation, download, and search recognize only `publishedVersion`.
+- The owner detail page is only allowed to set `headlineVersion = ownerPreviewVersion` when no `publishedVersion` exists.
+- Public distribution behaviors such as promotion, compat latest, and default download can only be bound to `publishedVersion`.
 
-## 4. 代码实际链路
+## 4. Actual Code Path
 
-### 4.1 首次上传
+### 4.1 First Upload
 
-- 普通用户上传后直接创建 `PENDING_REVIEW` 版本
-- 同时创建 `PENDING` review task
-- 不会创建初始 `DRAFT`
-- 不会更新 `latestVersionId`
+- When a regular user uploads, a `PENDING_REVIEW` version is created directly.
+- A `PENDING` review task is created at the same time.
+- An initial `DRAFT` is not created.
+- `latestVersionId` is not updated.
 
-### 4.2 审核通过
+### 4.2 Review Approved
 
 - `PENDING_REVIEW -> PUBLISHED`
-- review task 标记为 `APPROVED`
-- `Skill.latestVersionId` 指向该版本
-- skill 展示元数据从发布版本刷新
+- The review task is marked `APPROVED`.
+- `Skill.latestVersionId` points to that version.
+- The skill's display metadata is refreshed from the published version.
 
-### 4.3 审核拒绝
+### 4.3 Review Rejected
 
 - `PENDING_REVIEW -> REJECTED`
-- review task 标记为 `REJECTED`
-- 版本保留，可后续删除
+- The review task is marked `REJECTED`.
+- The version is retained and can be deleted later.
 
-### 4.4 撤回审核
+### 4.4 Withdraw Review
 
-- `withdraw-review` 的统一语义是 `PENDING_REVIEW -> DRAFT`
-- 同时删除关联的 `PENDING review_task`
-- 该操作是可逆、非破坏性的
-- 当前代码只允许提交人本人撤回
+- The unified semantic of `withdraw-review` is `PENDING_REVIEW -> DRAFT`.
+- The associated `PENDING review_task` is deleted at the same time.
+- This operation is reversible and non-destructive.
+- The current code only allows the submitter themselves to withdraw.
 
-### 4.5 重传新版本
+### 4.5 Uploading a New Version
 
-- 若发现旧的 `PENDING_REVIEW` 版本，会先把旧版本自动降回 `DRAFT`
-- 然后创建新的待审版本
-- 自动撤回与手动撤回必须保持同一语义
+- If an old `PENDING_REVIEW` version is found, it is first automatically demoted back to `DRAFT`.
+- Then a new pending-review version is created.
+- Automatic withdrawal and manual withdrawal must maintain the same semantics.
 
-### 4.6 已发布版本重发
+### 4.6 Re-releasing a Published Version
 
-- rerelease 当前本质上是从已发布版本复制并重新走发布流程
-- 当前实现允许特权路径直接产出新 `PUBLISHED` 版本
-- 该能力应被理解为发布路径特例，不是生命周期展示态
+- A rerelease is currently essentially copying from a published version and going through the publish flow again.
+- The current implementation allows a privileged path to directly produce a new `PUBLISHED` version.
+- This capability should be understood as a special case in the publish path, not a lifecycle display state.
 
-### 4.7 隐藏 / 恢复 / 归档 / 撤回已发布版本
+### 4.7 Hide / Restore / Archive / Withdraw Published Version
 
-- 隐藏：只改 `hidden=true`
-- 恢复：只改 `hidden=false`
-- 归档：`Skill.status = ARCHIVED`
-- 取消归档：`Skill.status = ACTIVE`
-- yank：`PUBLISHED -> YANKED`
+- Hide: only changes `hidden=true`
+- Restore: only changes `hidden=false`
+- Archive: `Skill.status = ARCHIVED`
+- Unarchive: `Skill.status = ACTIVE`
+- Yank: `PUBLISHED -> YANKED`
 
-### 4.8 Yank 后指针修正
+### 4.8 Pointer Correction After Yank
 
-- yank 已发布版本时，若命中当前 `latestVersionId`，必须重算 latest published pointer
-- 若仍有其他 `PUBLISHED` 版本，则指向最新一个
-- 若已无任何 `PUBLISHED` 版本，则 `latestVersionId = null`
+- When a published version is yanked and it matches the current `latestVersionId`, the latest published pointer must be recalculated.
+- If there are still other `PUBLISHED` versions, point to the most recent one.
+- If there are no longer any `PUBLISHED` versions, set `latestVersionId = null`.
 
-## 5. 对外协议约束
+## 5. External Protocol Constraints
 
 ### 5.1 Public / Search / Compat
 
-- 对外协议可以继续暴露 `latestVersion`、`latest`、默认下载等概念
-- 但它们都必须严格表示“最新已发布版本”
-- compat 层内部实现必须从统一 lifecycle projection 的 `publishedVersion` 映射，不允许自行推导“当前版本”
+- External protocols may continue to expose concepts such as `latestVersion`, `latest`, and default download.
+- But they must all strictly represent "the latest published version."
+- The internal implementation of the compat layer must map from the `publishedVersion` of the unified lifecycle projection. It is not allowed to derive the "current version" independently.
 
 ### 5.2 Frontend
 
-- 页面状态展示统一消费 projection
-- 不再新增旧兼容字段依赖
-- `hidden` 仅作为治理标记展示，不参与版本状态拼装
+- Page state display uniformly consumes the projection.
+- No new dependencies on old compatibility fields are to be added.
+- `hidden` is only displayed as a governance flag and does not participate in version state assembly.
 
-## 6. 权限边界
+## 6. Permission Boundaries
 
-- `withdraw-review`：仅提交人本人
-- 删除版本：owner 或 namespace 管理者，且仅限 `DRAFT` / `REJECTED`
-- 归档 / 取消归档：owner 或 namespace 管理者
-- 隐藏 / 恢复技能、撤回已发布版本：平台技能治理权限
+- `withdraw-review`: submitter only
+- Delete version: owner or namespace manager, and only for `DRAFT` / `REJECTED`
+- Archive / unarchive: owner or namespace manager
+- Hide / restore skill, withdraw published version: platform skill governance permission
 
-## 7. 当前最终约束
+## 7. Current Final Constraints
 
-- 一个 skill 生命周期的唯一规范入口就是本文件
-- 其它文档如 `02-domain-model`、`05-business-flows`、`06-api-design`、`08-frontend-architecture` 必须与本文件保持一致
-- 若后续代码再次改变生命周期语义，应先修改代码，再同步更新本文件和相关子文档
+- This document is the single authoritative reference for the skill lifecycle.
+- Other documents such as `02-domain-model`, `05-business-flows`, `06-api-design`, and `08-frontend-architecture` must remain consistent with this document.
+- If the code changes lifecycle semantics again in the future, the code should be updated first, then this document and related sub-documents should be synchronized.

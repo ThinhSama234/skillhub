@@ -1,19 +1,19 @@
-# Kubernetes 部署指南
+# Kubernetes Deployment Guide
 
-本文档说明如何在 Kubernetes 集群中部署 SkillHub。
+This document explains how to deploy SkillHub in a Kubernetes cluster.
 
-## 前置条件
+## Prerequisites
 
-- Kubernetes 集群 (v1.24+)
-- kubectl 已配置并连接到集群
-- nginx ingress controller 已安装（可选，用于域名访问）
-- 默认 StorageClass 已配置（用于 PVC）
+- Kubernetes cluster (v1.24+)
+- kubectl configured and connected to the cluster
+- nginx ingress controller installed (optional, for domain access)
+- Default StorageClass configured (for PVCs)
 
-## 目录结构
+## Directory Structure
 
 ```
 deploy/k8s/
-├── base/                          # 基础配置（所有场景共用）
+├── base/                          # Base configuration (shared across all scenarios)
 │   ├── kustomization.yaml
 │   ├── configmap.yaml
 │   ├── secret.yaml.example
@@ -24,114 +24,114 @@ deploy/k8s/
 │   └── ingress.yaml
 │
 └── overlays/
-    ├── with-infra/                # 完整部署（包含内置数据库）
+    ├── with-infra/                # Full deployment (includes built-in databases)
     │   ├── kustomization.yaml
     │   ├── postgres-statefulset.yaml
     │   └── redis-statefulset.yaml
     │
-    └── external/                  # 外部数据库
+    └── external/                  # External databases
         └── kustomization.yaml
 ```
 
-## 快速开始
+## Quick Start
 
-### 1. 创建命名空间
+### 1. Create Namespace
 
 ```bash
 kubectl create namespace skillhub
 ```
 
-### 2. 配置 Secret
+### 2. Configure Secret
 
 ```bash
 cd deploy/k8s/base
 
-# 复制示例文件
+# Copy the example file
 cp secret.yaml.example secret.yaml
 
-# 编辑 secret.yaml，修改敏感配置
+# Edit secret.yaml to update sensitive configuration values
 ```
 
-**Secret 配置项**：
+**Secret configuration keys**:
 
-| 键 | 说明 | 必填 |
+| Key | Description | Required |
 |---|---|---|
-| spring-datasource-url | PostgreSQL 连接 URL | 是 |
-| spring-datasource-username | 数据库用户名 | 是 |
-| spring-datasource-password | 数据库密码 | 是 |
-| bootstrap-admin-password | 管理员密码 | 是 |
-| oauth2-github-client-id | GitHub OAuth ID | 否 |
-| oauth2-github-client-secret | GitHub OAuth 密钥 | 否 |
-| skill-scanner-llm-api-key | LLM API 密钥 | 否 |
+| spring-datasource-url | PostgreSQL connection URL | Yes |
+| spring-datasource-username | Database username | Yes |
+| spring-datasource-password | Database password | Yes |
+| bootstrap-admin-password | Admin password | Yes |
+| oauth2-github-client-id | GitHub OAuth ID | No |
+| oauth2-github-client-secret | GitHub OAuth secret | No |
+| skill-scanner-llm-api-key | LLM API key | No |
 
-### 3. 选择部署方式
+### 3. Choose Deployment Mode
 
-**方式一：完整部署（包含 PostgreSQL + Redis）**
+**Option A: Full deployment (includes PostgreSQL + Redis)**
 
-适合全新环境，自动部署数据库：
+Suitable for fresh environments; databases are deployed automatically:
 
 ```bash
 kubectl apply -k overlays/with-infra/
 ```
 
-**方式二：使用外部数据库**
+**Option B: Use external databases**
 
-适合已有 PostgreSQL 和 Redis 的环境：
+Suitable for environments that already have PostgreSQL and Redis:
 
-1. 修改 `base/configmap.yaml` 中的 Redis 配置：
+1. Update the Redis configuration in `base/configmap.yaml`:
 ```yaml
 redis-host: your-redis-host
 redis-port: "6379"
 ```
 
-2. 修改 `base/secret.yaml` 中的数据库连接：
+2. Update the database connection in `base/secret.yaml`:
 ```yaml
 spring-datasource-url: jdbc:postgresql://your-postgres-host:5432/skillhub
 ```
 
-3. 部署：
+3. Deploy:
 ```bash
 kubectl apply -k overlays/external/
 ```
 
-### 4. 验证部署
+### 4. Verify Deployment
 
 ```bash
-# 检查 Pod 状态
+# Check Pod status
 kubectl get pods -n skillhub
 
-# 等待所有 Pod 就绪
+# Wait for all Pods to be ready
 kubectl wait --for=condition=ready pod --all -n skillhub --timeout=300s
 ```
 
-### 5. 访问服务
+### 5. Access the Service
 
-**方式一：端口转发（推荐本地测试）**
+**Option A: Port forwarding (recommended for local testing)**
 
 ```bash
-# 前端
+# Frontend
 kubectl port-forward svc/skillhub-web -n skillhub 8080:80
 
-# 后端 API
+# Backend API
 kubectl port-forward svc/skillhub-server -n skillhub 8081:8080
 ```
 
-访问 http://localhost:8080
+Access http://localhost:8080
 
-**方式二：Ingress 域名访问**
+**Option B: Ingress domain access**
 
-修改 `base/ingress.yaml` 中的域名：
+Update the domain in `base/ingress.yaml`:
 ```yaml
 spec:
   rules:
-    - host: your-domain.com  # 修改为你的域名
+    - host: your-domain.com  # Replace with your domain
 ```
 
 ```bash
-kubectl apply -k overlays/with-infra/  # 或 overlays/external/
+kubectl apply -k overlays/with-infra/  # or overlays/external/
 ```
 
-## 部署架构
+## Deployment Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -139,8 +139,8 @@ kubectl apply -k overlays/with-infra/  # 或 overlays/external/
 ├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │ skillhub-web│  │skillhub-    │  │ skillhub-scanner    │  │
-│  │   (前端)    │  │  server     │  │    (扫描器)         │  │
-│  │   :80       │  │  (后端)     │  │     :8000           │  │
+│  │  (frontend) │  │  server     │  │    (scanner)        │  │
+│  │   :80       │  │  (backend)  │  │     :8000           │  │
 │  └─────────────┘  │   :8080     │  └─────────────────────┘  │
 │                   └──────┬──────┘                            │
 │                          │                                   │
@@ -161,48 +161,48 @@ kubectl apply -k overlays/with-infra/  # 或 overlays/external/
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 配置说明
+## Configuration Reference
 
-### ConfigMap 配置项
+### ConfigMap Keys
 
-| 键 | 默认值 | 说明 |
+| Key | Default | Description |
 |---|---|---|
-| redis-host | redis | Redis 主机地址 |
-| redis-port | 6379 | Redis 端口 |
-| storage-base-path | /var/lib/skillhub/storage | 技能存储路径 |
-| skillhub-storage-provider | local | 存储类型（local/s3） |
-| skill-scanner-enabled | true | 是否启用扫描器 |
-| skill-scanner-url | http://skillhub-scanner:8000 | 扫描器地址 |
-| skill-scanner-mode | upload | 扫描模式 |
-| bootstrap-admin-enabled | true | 是否创建默认管理员 |
-| bootstrap-admin-user-id | docker-admin | 管理员用户 ID |
-| bootstrap-admin-username | admin | 管理员用户名 |
-| bootstrap-admin-display-name | Platform Admin | 管理员显示名称 |
-| bootstrap-admin-email | admin@example.com | 管理员邮箱 |
-| session-cookie-secure | false | HTTPS 环境设为 true |
+| redis-host | redis | Redis host address |
+| redis-port | 6379 | Redis port |
+| storage-base-path | /var/lib/skillhub/storage | Skill storage path |
+| skillhub-storage-provider | local | Storage type (local/s3) |
+| skill-scanner-enabled | true | Whether to enable the scanner |
+| skill-scanner-url | http://skillhub-scanner:8000 | Scanner address |
+| skill-scanner-mode | upload | Scan mode |
+| bootstrap-admin-enabled | true | Whether to create the default admin account |
+| bootstrap-admin-user-id | docker-admin | Admin user ID |
+| bootstrap-admin-username | admin | Admin username |
+| bootstrap-admin-display-name | Platform Admin | Admin display name |
+| bootstrap-admin-email | admin@example.com | Admin email |
+| session-cookie-secure | false | Set to true in HTTPS environments |
 
-### 存储配置
+### Storage Configuration
 
-**本地存储（默认）**
+**Local storage (default)**
 
-默认使用本地文件存储，数据保存在 PVC `skillhub-storage-pvc` 中。
+By default, local file storage is used, and data is saved in the PVC `skillhub-storage-pvc`.
 
-**S3/OSS 存储**
+**S3/OSS storage**
 
-生产环境建议使用 S3 兼容的对象存储：
+For production environments, S3-compatible object storage is recommended:
 
-1. 修改 ConfigMap：
+1. Update ConfigMap:
 ```yaml
 skillhub-storage-provider: s3
 ```
 
-2. 在 Secret 中添加：
+2. Add to Secret:
 ```yaml
 skillhub-storage-s3-access-key: your-access-key
 skillhub-storage-s3-secret-key: your-secret-key
 ```
 
-3. 在 backend-deployment.yaml 中添加环境变量：
+3. Add environment variables to backend-deployment.yaml:
 ```yaml
 - name: SKILLHUB_STORAGE_S3_ENDPOINT
   value: https://oss-cn-shanghai.aliyuncs.com
@@ -212,78 +212,78 @@ skillhub-storage-s3-secret-key: your-secret-key
   value: cn-shanghai
 ```
 
-### 镜像说明
+### Image Reference
 
-| 组件 | 镜像 |
+| Component | Image |
 |---|---|
-| 后端服务 | ghcr.io/iflytek/skillhub-server:latest |
-| 前端服务 | ghcr.io/iflytek/skillhub-web:latest |
-| 扫描器 | ghcr.io/iflytek/skillhub-scanner:latest |
+| Backend service | ghcr.io/iflytek/skillhub-server:latest |
+| Frontend service | ghcr.io/iflytek/skillhub-web:latest |
+| Scanner | ghcr.io/iflytek/skillhub-scanner:latest |
 | PostgreSQL | postgres:16-alpine |
 | Redis | redis:7-alpine |
 
-## 默认管理员
+## Default Admin Account
 
-首次启动时，如果 `bootstrap-admin-enabled` 为 `true`，系统会自动创建管理员账户：
+On first startup, if `bootstrap-admin-enabled` is `true`, the system will automatically create an admin account:
 
-- 用户名：`admin`
-- 密码：在 `secret.yaml` 的 `bootstrap-admin-password` 中配置
+- Username: `admin`
+- Password: configured in `bootstrap-admin-password` within `secret.yaml`
 
-**安全建议**：首次登录后，请立即修改默认密码。
+**Security recommendation**: Change the default password immediately after your first login.
 
-## 常见问题
+## Troubleshooting
 
-### Pod 一直 Pending
+### Pod Stuck in Pending
 
 ```bash
-# 检查 PVC 是否绑定
+# Check if PVC is bound
 kubectl get pvc -n skillhub
 
-# 检查节点资源
+# Check node resources
 kubectl describe node <node-name>
 ```
 
-### 镜像拉取失败
+### Image Pull Failure
 
-如果镜像私有，需要创建拉取凭证：
+If the image is private, create pull credentials:
 
 ```bash
 kubectl create secret docker-registry ghcr-secret \
   --docker-server=ghcr.io \
-  --docker-username=<GitHub用户名> \
+  --docker-username=<GitHub username> \
   --docker-password=<GitHub Token> \
   -n skillhub
 ```
 
-### 数据库连接失败
+### Database Connection Failure
 
 ```bash
-# 检查 PostgreSQL 是否就绪
+# Check if PostgreSQL is ready
 kubectl logs postgres-0 -n skillhub
 
-# 检查 Secret 配置
+# Check Secret configuration
 kubectl get secret skillhub-secret -n skillhub -o yaml
 ```
 
-### 查看日志
+### Viewing Logs
 
 ```bash
-# 后端日志
+# Backend logs
 kubectl logs -l app.kubernetes.io/name=skillhub-server -n skillhub -f
 
-# 前端日志
+# Frontend logs
 kubectl logs -l app.kubernetes.io/name=skillhub-web -n skillhub -f
 
-# 扫描器日志
+# Scanner logs
 kubectl logs -l app.kubernetes.io/name=skillhub-scanner -n skillhub -f
 ```
 
-## 清理
+## Cleanup
 
 ```bash
-# 删除所有资源
-kubectl delete -k overlays/with-infra/  # 或 overlays/external/
+# Delete all resources
+kubectl delete -k overlays/with-infra/  # or overlays/external/
 
-# 删除命名空间
+# Delete the namespace
 kubectl delete namespace skillhub
 ```

@@ -1,62 +1,62 @@
 ---
-title: SkillHub 文档中心
+title: SkillHub Documentation Center
 sidebar_position: 1
-description: 企业级 AI 技能注册表 - 安全可控的技能发布、发现与管理平台
+description: Enterprise-grade AI Skill Registry - A secure and controlled platform for skill publishing, discovery, and management
 ---
 
 # SkillHub
 
 <section className="hero-section">
   <div className="container">
-    <h1 className="hero-section__title">🏢 企业级 AI 技能注册表</h1>
+    <h1 className="hero-section__title">🏢 Enterprise-grade AI Skill Registry</h1>
     <p className="hero-section__tagline">
-      安全可控的技能发布、发现与管理平台，保障企业数据主权
+      A secure and controlled platform for skill publishing, discovery, and management — safeguarding enterprise data sovereignty
     </p>
     <div className="hero-section__cta">
-      <a href="/getting-started/quick-start" className="btn-primary">立即部署</a>
-      <a href="/getting-started/overview" className="btn-secondary">了解更多</a>
+      <a href="/getting-started/quick-start" className="btn-primary">Deploy Now</a>
+      <a href="/getting-started/overview" className="btn-secondary">Learn More</a>
     </div>
   </div>
 </section>
 
 ---
 
-## 企业价值
+## Enterprise Value
 
 <div className="row" style={{ marginTop: '40px', marginBottom: '40px' }}>
   <div className="col col--3">
     <div className="enterprise-value-card">
       <div className="enterprise-value-card__icon">🔐</div>
-      <h3 className="enterprise-value-card__title">数据主权可控</h3>
+      <h3 className="enterprise-value-card__title">Data Sovereignty</h3>
       <p className="enterprise-value-card__description">
-        自托管部署，数据不离开企业网络；支持私有 S3/MinIO 存储；完整审计链路
+        Self-hosted deployment — data never leaves the enterprise network; supports private S3/MinIO storage; complete audit trail
       </p>
     </div>
   </div>
   <div className="col col--3">
     <div className="enterprise-value-card">
       <div className="enterprise-value-card__icon">🏢</div>
-      <h3 className="enterprise-value-card__title">治理体系完善</h3>
+      <h3 className="enterprise-value-card__title">Robust Governance</h3>
       <p className="enterprise-value-card__description">
-        命名空间隔离；双层审核机制；细粒度 RBAC 权限控制
+        Namespace isolation; two-tier review mechanism; fine-grained RBAC permission control
       </p>
     </div>
   </div>
   <div className="col col--3">
     <div className="enterprise-value-card">
       <div className="enterprise-value-card__icon">🔌</div>
-      <h3 className="enterprise-value-card__title">集成能力强</h3>
+      <h3 className="enterprise-value-card__title">Strong Integration</h3>
       <p className="enterprise-value-card__description">
-        兼容 ClawHub CLI；标准 REST API；OAuth2 企业 SSO 集成
+        Compatible with ClawHub CLI; standard REST API; OAuth2 enterprise SSO integration
       </p>
     </div>
   </div>
   <div className="col col--3">
     <div className="enterprise-value-card">
       <div className="enterprise-value-card__icon">📊</div>
-      <h3 className="enterprise-value-card__title">可观测性完善</h3>
+      <h3 className="enterprise-value-card__title">Full Observability</h3>
       <p className="enterprise-value-card__description">
-        完整审计日志；Prometheus 指标；操作追踪与溯源
+        Complete audit logs; Prometheus metrics; operation tracing and lineage
       </p>
     </div>
   </div>
@@ -64,38 +64,38 @@ description: 企业级 AI 技能注册表 - 安全可控的技能发布、发现
 
 ---
 
-## 核心功能特性
+## Core Features
 
 <div style={{ textAlign: 'center', marginTop: '40px' }}>
   <div className="feature-tags">
-    <span className="feature-tag">版本控制</span>
-    <span className="feature-tag">全文搜索</span>
-    <span className="feature-tag">命名空间</span>
-    <span className="feature-tag">审核流程</span>
-    <span className="feature-tag">语义化版本</span>
-    <span className="feature-tag">多维度筛选</span>
-    <span className="feature-tag">RBAC 权限</span>
-    <span className="feature-tag">审计日志</span>
+    <span className="feature-tag">Version Control</span>
+    <span className="feature-tag">Full-text Search</span>
+    <span className="feature-tag">Namespaces</span>
+    <span className="feature-tag">Review Workflow</span>
+    <span className="feature-tag">Semantic Versioning</span>
+    <span className="feature-tag">Multi-dimensional Filtering</span>
+    <span className="feature-tag">RBAC Permissions</span>
+    <span className="feature-tag">Audit Logs</span>
   </div>
 </div>
 
 ---
 
-## 快速开始
+## Quick Start
 
 <div style={{ textAlign: 'center', marginTop: '40px' }}>
   <div className="quick-start-code">
     <code>$ curl -fsSL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh | sh -s -- up</code>
   </div>
   <p style={{ marginTop: '16px', color: 'var(--ifm-font-color-secondary)' }}>
-    访问 <a href="http://localhost:3000">http://localhost:3000</a> 开始使用
+    Visit <a href="http://localhost:3000">http://localhost:3000</a> to get started
   </p>
 </div>
 
 ---
 
-## 下一步
+## Next Steps
 
-- [快速开始](./getting-started/quick-start) - 一键启动 SkillHub
-- [产品概述](./getting-started/overview) - 了解更多产品特性
-- [部署指南](./administration/deployment/single-machine) - 生产环境部署
+- [Quick Start](./getting-started/quick-start) - Launch SkillHub with a single command
+- [Product Overview](./getting-started/overview) - Learn more about product features
+- [Deployment Guide](./administration/deployment/single-machine) - Production environment deployment

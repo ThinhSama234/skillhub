@@ -1,6 +1,6 @@
-# skillhub 搜索架构
+# skillhub Search Architecture
 
-## 1 SPI 接口
+## 1 SPI Interfaces
 
 ```java
 public interface SearchIndexService {
@@ -20,128 +20,128 @@ public interface SearchRebuildService {
 }
 ```
 
-## 2 SearchQuery 模型
+## 2 SearchQuery Model
 
 ```java
 public record SearchQuery(
     String keyword,
-    Long namespaceId,           // 可选，指定空间搜索
-    String namespaceSlug,       // 可选
-    SearchVisibilityScope scope, // ACL 投影，由应用服务层计算注入
+    Long namespaceId,           // Optional; search within a specific namespace
+    String namespaceSlug,       // Optional
+    SearchVisibilityScope scope, // ACL projection; computed and injected by the application service layer
     SortField sortBy,           // RELEVANCE / DOWNLOADS / RATING / NEWEST
     int page,
     int size
 ) {}
 
-// 搜索可见范围投影，由应用服务层根据当前用户计算
+// Search visibility scope projection; computed by the application service layer based on the current user
 public record SearchVisibilityScope(
-    boolean includeAllPublic,        // 是否包含所有 PUBLIC 技能
-    Set<Long> memberNamespaceIds,    // 用户是 MEMBER 的 namespace（可见 NAMESPACE_ONLY）
-    Set<Long> adminNamespaceIds,     // 用户是 ADMIN 的 namespace（可见 PRIVATE）
-    String userId                    // 当前用户 ID（可见自己的 PRIVATE skill），匿名为 null
+    boolean includeAllPublic,        // Whether to include all PUBLIC skills
+    Set<Long> memberNamespaceIds,    // Namespaces where the user is a MEMBER (can see NAMESPACE_ONLY)
+    Set<Long> adminNamespaceIds,     // Namespaces where the user is an ADMIN (can see PRIVATE)
+    String userId                    // Current user ID (can see their own PRIVATE skills); null for anonymous
 ) {}
 ```
 
-ACL 投影计算规则：
-- 匿名用户：`includeAllPublic=true`，其余为空集，`userId=null`
-- 已登录用户：`includeAllPublic=true`，`memberNamespaceIds` = 用户所属空间，`adminNamespaceIds` = 用户是 ADMIN 以上的空间，`userId` = 当前用户 ID
+ACL projection computation rules:
+- Anonymous users: `includeAllPublic=true`, other sets are empty, `userId=null`
+- Authenticated users: `includeAllPublic=true`, `memberNamespaceIds` = namespaces the user belongs to, `adminNamespaceIds` = namespaces where the user is at least ADMIN, `userId` = current user ID
 
-一期 PostgreSQL 实现中，`SearchVisibilityScope` 转换为 WHERE 条件：
+In the Phase 1 PostgreSQL implementation, `SearchVisibilityScope` is translated into a WHERE clause:
 ```sql
 WHERE (visibility = 'PUBLIC')
    OR (visibility = 'NAMESPACE_ONLY' AND namespace_id IN (:memberNamespaceIds))
    OR (visibility = 'PRIVATE' AND (namespace_id IN (:adminNamespaceIds) OR owner_id = :userId))
 ```
 
-迁移到 ES 时，`SearchVisibilityScope` 可直接映射为 bool query 的 should/filter 子句。
+When migrating to ES, `SearchVisibilityScope` can be directly mapped to should/filter sub-clauses of a bool query.
 
-## 3 搜索文档表 skill_search_document
+## 3 Search Document Table skill_search_document
 
-一个 skill 对应一条搜索文档，但文档内容的来源语义应严格收敛为“当前最新已发布版本”。实现上仍可由 `latest_version_id` 作为缓存指针承载，但它只允许指向 `PUBLISHED` 版本；搜索层不能再把它当作泛化的“当前版本”。
+One search document per skill, but the semantic source of the document content must be strictly converged to "the current most recently published version." The implementation may still use `latest_version_id` as a cache pointer, but it is only allowed to point to a `PUBLISHED` version; the search layer must not treat it as a generalized "current version."
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
 | id | bigint | |
-| skill_id | bigint | 唯一，一 skill 一条 |
-| namespace_id | bigint | 用于空间过滤 |
-| owner_id | VARCHAR(128) | 用于 PRIVATE 可见性判定 |
+| skill_id | bigint | Unique; one record per skill |
+| namespace_id | bigint | Used for namespace filtering |
+| owner_id | VARCHAR(128) | Used for PRIVATE visibility evaluation |
 | title | varchar(256) | |
 | summary | varchar(512) | |
 | keywords | varchar(512) | |
-| search_text | text | `displayName`、`slug`、`summary`，以及 frontmatter 中除 `name` / `description` / `version` 外的字段展开结果 |
-| visibility | enum | 冗余，避免搜索时 join |
+| search_text | text | `displayName`, `slug`, `summary`, and the expanded result of frontmatter fields excluding `name` / `description` / `version` |
+| visibility | enum | Denormalized to avoid joins during search |
 | status | enum | |
 | updated_at | datetime | |
 
-唯一约束：`(skill_id)`
+Unique constraint: `(skill_id)`
 
-PostgreSQL 全文搜索索引：表增加 `search_vector tsvector` 生成列，基于 `title`、`summary`、`keywords`、`search_text` 自动维护，建立 GIN 索引。详见第 7 节。
+PostgreSQL full-text search index: add a `search_vector tsvector` generated column to the table, automatically maintained based on `title`, `summary`, `keywords`, and `search_text`, with a GIN index created. See Section 7 for details.
 
-## 4 索引写入时机
+## 4 Index Write Triggers
 
-以下场景触发搜索文档更新（upsert by skill_id）：
-- 审核通过（`PENDING_REVIEW → PUBLISHED`）：重算“最新已发布版本”指针，并用该发布版本内容更新搜索文档
-- 已发布版本被撤回（`PUBLISHED → YANKED`）：重算“最新已发布版本”指针；若不存在任何已发布版本，则移除搜索文档
-- 技能状态变更（隐藏/归档/恢复）：更新搜索文档的 status 字段
+The following scenarios trigger a search document update (upsert by skill_id):
+- Review approved (`PENDING_REVIEW → PUBLISHED`): recalculate the "most recently published version" pointer and update the search document with the content of that published version
+- Published version retracted (`PUBLISHED → YANKED`): recalculate the "most recently published version" pointer; if no published version exists, remove the search document
+- Skill status changed (hidden/archived/restored): update the status field in the search document
 
-## 5 搜索演进路线
+## 5 Search Evolution Roadmap
 
-### 5.1 一期数据建模约束
+### 5.1 Phase 1 Data Modeling Constraints
 
-一期“每个 skill 一条搜索文档、内容永远取最新已发布版本”是有意的简化。当前实现仍使用 `latest_version_id` 作为持久化指针，但这里的语义已经收敛为 latest published pointer。这个模型在以下场景下会不够用：
+The Phase 1 design of "one search document per skill, content always from the most recently published version" is an intentional simplification. The current implementation still uses `latest_version_id` as a persistence pointer, but its semantics here have converged to a latest published pointer. This model will be insufficient in the following scenarios:
 
-- 版本级检索（搜索某个旧版本的内容）
-- 自定义标签/通道检索（搜索 `@beta` 标签指向的版本内容）
-- 向量 chunk 索引（一个 skill 的 SKILL.md 拆成多个 embedding chunk）
+- Version-level retrieval (searching the content of an old version)
+- Custom tag/channel retrieval (searching the content pointed to by the `@beta` tag)
+- Vector chunk indexing (a SKILL.md from one skill is split into multiple embedding chunks)
 
-这些场景不是简单换 provider 能解决的，需要改表结构和索引写入逻辑。
+These scenarios cannot be solved by simply swapping the provider; they require changes to the table structure and index write logic.
 
-**一期搜索能力边界（产品限制）：**
-- 搜索只基于“最新已发布版本”的内容
-- 不支持按 version 或 tag 搜索内容
-- 搜索结果不区分 channel（`beta`、`stable` 等标签通道）
-- 用户通过 tag 安装的技能内容可能与搜索结果展示的内容不一致（搜索展示 latest，安装的是 tag 指向的版本）
-- 若要支持 channel-aware 搜索，必须升级到 version 级索引（二期 ES 实现）
+**Phase 1 search capability boundary (product limitations):**
+- Search is based only on the content of the "most recently published version"
+- Searching content by version or tag is not supported
+- Search results do not differentiate by channel (`beta`, `stable`, etc.)
+- The skill content seen when installing via a tag may differ from the content shown in search results (search shows latest; installation uses the version pointed to by the tag)
+- Supporting channel-aware search requires upgrading to version-level indexing (Phase 2 ES implementation)
 
-### 5.2 演进阶段
+### 5.2 Evolution Stages
 
-| 阶段 | 实现 | 索引粒度 | 切换方式 |
+| Stage | Implementation | Index Granularity | Switch Method |
 |------|------|---------|---------|
-| 一期 | PostgreSQL Full-Text (tsvector + GIN) | 每 skill 一条（latest published） | 默认 |
-| 一点五期 | PostgreSQL Full-Text + 语义向量重排 | 每 skill 一条（latest published） | 配置 `skillhub.search.semantic.enabled=true` |
-| 二期 | ES / OpenSearch | 每 skill_version 一条 + skill 聚合文档 | 配置 `search.provider=elasticsearch` |
-| 三期 | 向量检索 | 每 skill_version 多条（chunk 级） | 配置 `search.provider=vector` |
-| 四期 | 混合排序 | 关键词 + 向量混合 | 配置 `search.provider=hybrid` |
+| Phase 1 | PostgreSQL Full-Text (tsvector + GIN) | One record per skill (latest published) | Default |
+| Phase 1.5 | PostgreSQL Full-Text + semantic vector re-ranking | One record per skill (latest published) | Configure `skillhub.search.semantic.enabled=true` |
+| Phase 2 | ES / OpenSearch | One record per skill_version + skill aggregate document | Configure `search.provider=elasticsearch` |
+| Phase 3 | Vector search | Multiple records per skill_version (chunk-level) | Configure `search.provider=vector` |
+| Phase 4 | Hybrid ranking | Keyword + vector hybrid | Configure `search.provider=hybrid` |
 
-当前代码实现已落在“一点五期”：
-- 仍然使用 PostgreSQL 全文搜索作为主召回
-- 搜索文档表新增 `semantic_vector` 缓存字段
-- relevance 排序下，对全文候选集追加语义向量重排
-- 语义向量不可用时自动降级为现有全文相关度排序
+The current code implementation is at "Phase 1.5":
+- Still uses PostgreSQL full-text search as the primary recall layer
+- The search document table adds a `semantic_vector` cache field
+- Under relevance sorting, semantic vector re-ranking is appended to the full-text candidate set
+- When the semantic vector is unavailable, it automatically falls back to the existing full-text relevance ranking
 
-### 5.3 SPI 演进策略
+### 5.3 SPI Evolution Strategy
 
-一期 SPI 接口（`SearchIndexService` / `SearchQueryService`）的入参是 `SkillSearchDocument`（skill 粒度）。二期切换到 ES 时：
+The Phase 1 SPI interfaces (`SearchIndexService` / `SearchQueryService`) take `SkillSearchDocument` (skill-level granularity) as input. When switching to ES in Phase 2:
 
-1. 新增 `SkillVersionSearchDocument` 模型（version 粒度）
-2. `SearchIndexService` 新增 `indexVersion()` 方法（向下兼容，一期实现空方法）
-3. ES 实现同时写入 skill 聚合文档 + version 文档
-4. `SearchQueryService.search()` 的返回结果不变（仍返回 skill 级摘要），内部实现切换为 ES 查询
+1. Add a `SkillVersionSearchDocument` model (version-level granularity)
+2. `SearchIndexService` adds an `indexVersion()` method (backward-compatible; Phase 1 implementation is a no-op)
+3. The ES implementation writes both skill aggregate documents and version documents simultaneously
+4. The return type of `SearchQueryService.search()` is unchanged (still returns skill-level summaries); internally switches to an ES query
 
-这意味着二期切换不是零成本的——需要新增模型、扩展 SPI、重建索引。但一期不为此过度设计，SPI 抽象保证了切换时不需要改业务层代码。
+This means the Phase 2 switch is not zero-cost — new models, SPI extensions, and index rebuilding are required. However, Phase 1 does not over-engineer for this; the SPI abstraction ensures that no business-layer code changes are needed during the switch.
 
-通过 `@ConditionalOnProperty` 或自定义 SPI 加载机制切换。
+Switching is done via `@ConditionalOnProperty` or a custom SPI loading mechanism.
 
-## 6 分布式安全
+## 6 Distributed Safety
 
-`rebuildAll()` / `rebuildByNamespace()` 执行前获取 Redis 分布式锁（key: `search:rebuild:{scope}`，TTL: 10min），获取失败则跳过。
+Obtain a Redis distributed lock before executing `rebuildAll()` / `rebuildByNamespace()` (key: `search:rebuild:{scope}`, TTL: 10 minutes); skip if the lock cannot be acquired.
 
-## 7 PostgreSQL 全文搜索中文支持
+## 7 PostgreSQL Full-Text Search Chinese Support
 
-PostgreSQL 全文搜索使用 `tsvector` + `tsquery` + GIN 索引：
+PostgreSQL full-text search uses `tsvector` + `tsquery` + GIN index:
 
 ```sql
--- 增加 tsvector 生成列
+-- Add tsvector generated column
 ALTER TABLE skill_search_document
 ADD COLUMN search_vector tsvector
 GENERATED ALWAYS AS (
@@ -151,13 +151,13 @@ GENERATED ALWAYS AS (
     setweight(to_tsvector('simple', coalesce(search_text, '')), 'C')
 ) STORED;
 
--- 建立 GIN 索引
+-- Create GIN index
 CREATE INDEX idx_search_vector ON skill_search_document USING GIN (search_vector);
 ```
 
-中文支持方案：
-- 一期使用 `simple` 分词配置（按空格和标点分词），对中文支持有限但零依赖
-- 如需更好的中文分词，可安装 `zhparser` 或 `pg_jieba` 扩展，替换为对应的 text search configuration
-- PostgreSQL 的 `tsvector` 支持权重（A/B/C/D），可对 title 赋予更高权重，提升搜索相关性
+Chinese language support strategy:
+- Phase 1 uses the `simple` tokenization configuration (tokenizes by spaces and punctuation); Chinese support is limited but has zero dependencies
+- For better Chinese tokenization, `zhparser` or `pg_jieba` extensions can be installed and their corresponding text search configuration can be used as a replacement
+- PostgreSQL's `tsvector` supports weights (A/B/C/D), so `title` can be assigned a higher weight to improve search relevance
 
-已知局限：`simple` 分词对中文的精度不如专业搜索引擎。建议 Phase 2 完成后评估搜索效果，如不满足需求则在 Phase 3 提前引入 ES。
+Known limitations: the `simple` tokenizer has lower precision for Chinese than a professional search engine. It is recommended to evaluate search effectiveness after Phase 2 is complete; if it does not meet requirements, introduce ES early in Phase 3.

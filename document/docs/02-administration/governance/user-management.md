@@ -1,36 +1,36 @@
 ---
-title: 用户管理
+title: User Management
 sidebar_position: 3
-description: 平台用户管理
+description: Platform user management
 ---
 
-# 用户管理
+# User Management
 
-## 用户状态
+## User Status
 
-| 状态 | 实际逻辑 |
-|------|----------|
-| `ACTIVE` | 可正常登录和使用系统。OAuth 首次自动准入、local 注册成功后都会进入该状态。 |
-| `PENDING` | 账号已建但不可登录。OAuth 在“需要审批”策略下会创建 `PENDING` 用户并跳转到待审批页；local 登录遇到该状态会直接拒绝。 |
-| `DISABLED` | 不可登录。OAuth 和 local 登录都会拒绝；`/api/v1/auth/me` 发现当前会话对应用户已被禁用时，会直接清掉 session。 |
-| `MERGED` | 账号已并入其他账号，不可继续登录；主要由账号合并流程写入，不是普通用户管理流程的目标状态。 |
+| Status | Actual Logic |
+|--------|--------------|
+| `ACTIVE` | Can log in and use the system normally. OAuth first-time auto-admission and successful local registration both result in this status. |
+| `PENDING` | Account created but cannot log in. Under the "requires approval" policy, OAuth creates a `PENDING` user and redirects to the pending-approval page; local login will be directly rejected if this status is encountered. |
+| `DISABLED` | Cannot log in. Both OAuth and local login will be rejected; when `/api/v1/auth/me` detects that the user associated with the current session has been disabled, it will immediately clear the session. |
+| `MERGED` | Account has been merged into another account and can no longer log in; this status is primarily written by the account-merge flow and is not a target state in the normal user management process. |
 
-## 用户准入
+## User Admission
 
-可配置新用户是否需要审批：
-- 自动准入：新用户登录后自动激活
-- 审批准入：新用户需 USER_ADMIN 审批后激活
+You can configure whether new users require approval:
+- Auto-admission: new users are automatically activated upon login
+- Approval-based admission: new users must be approved by a USER_ADMIN before activation
 
-## 角色分配
+## Role Assignment
 
-`USER_ADMIN` 或 `SUPER_ADMIN` 可调用用户管理接口修改平台角色，但当前实现有几个关键点：
+`USER_ADMIN` or `SUPER_ADMIN` can call the user management API to change platform roles. However, there are a few key points about the current implementation:
 
-- 接口一次只能设置一个目标平台角色。
-- 设置时会删除该用户已有的显式平台角色，再写入新的那个角色。
-- 如果设置为 `USER`，不会写入 `user_role_binding`，而是依赖运行时默认角色补位。
-- `USER_ADMIN` 不能分配 `SUPER_ADMIN`，只有 `SUPER_ADMIN` 能分配。
+- The API can only set one target platform role at a time.
+- When setting a role, all existing explicit platform roles for that user are removed before the new role is written.
+- If the target role is `USER`, no record is written to `user_role_binding`; the runtime default role fallback is used instead.
+- `USER_ADMIN` cannot assign `SUPER_ADMIN`; only a `SUPER_ADMIN` can do that.
 
-当前管理接口可设置的目标角色实际上是：
+The target roles that can currently be set through the management API are:
 
 - `USER`
 - `SKILL_ADMIN`
@@ -38,24 +38,24 @@ description: 平台用户管理
 - `AUDITOR`
 - `SUPER_ADMIN`
 
-## 用户封禁/解封
+## Banning / Unbanning Users
 
-`USER_ADMIN` 或 `SUPER_ADMIN` 可封禁/解封用户。
+`USER_ADMIN` or `SUPER_ADMIN` can ban or unban users.
 
-当前公开管理接口只支持把状态改成：
+The current public management API only supports changing the status to:
 
 - `ACTIVE`
 - `DISABLED`
 
-其中：
+Notes:
 
-- “审批通过”本质上也是把用户状态改成 `ACTIVE`。
-- 不能通过该接口直接改成 `PENDING` 或 `MERGED`。
+- "Approve" essentially also changes the user's status to `ACTIVE`.
+- The status cannot be changed directly to `PENDING` or `MERGED` via this API.
 
-## 账号合并
+## Account Merging
 
-支持将多个账号合并为一个，保留操作历史。
+Merging multiple accounts into one is supported, with the operation history preserved.
 
-## 下一步
+## Next Steps
 
-- [创建技能包](../../user-guide/publishing/create-skill) - 开始发布技能
+- [Create a Skill Package](../../user-guide/publishing/create-skill) - Start publishing skills

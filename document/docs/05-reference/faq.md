@@ -1,49 +1,49 @@
 ---
-title: 常见问题
+title: FAQ
 sidebar_position: 1
-description: 常见问题解答
+description: Frequently asked questions
 ---
 
-# 常见问题
+# FAQ
 
-## 部署相关
+## Deployment
 
-### 如何修改默认端口？
+### How do I change the default port?
 
-修改 `.env.release` 中的端口配置。
+Modify the port configuration in `.env.release`.
 
-### 如何配置 HTTPS？
+### How do I configure HTTPS?
 
-建议使用反向代理（Nginx/Ingress）处理 TLS 终止。
+It is recommended to use a reverse proxy (Nginx/Ingress) to handle TLS termination.
 
-### 数据库如何备份？
+### How do I back up the database?
 
-使用 PostgreSQL 标准备份工具（pg_dump）。
+Use the standard PostgreSQL backup tool (`pg_dump`).
 
-## 使用相关
+## Usage
 
-### 如何重置管理员密码？
+### How do I reset the admin password?
 
-如果忘记管理员密码，可通过环境变量重新设置首登管理员，或直接操作数据库。
+If you forget the admin password, you can re-set the initial admin via environment variables, or modify the database directly.
 
-### 技能包上传失败怎么办？
+### What should I do if a skill package upload fails?
 
-检查：
-1. 文件大小是否超限
-2. 文件类型是否在白名单内
-3. 是否包含必需的 SKILL.md
-4. SKILL.md frontmatter 格式是否正确
+Check:
+1. Whether the file size exceeds the limit
+2. Whether the file type is on the allowlist
+3. Whether the required `SKILL.md` is included
+4. Whether the `SKILL.md` frontmatter format is correct
 
-## 开发相关
+## Development
 
-### 如何扩展 OAuth Provider？
+### How do I extend the OAuth Provider?
 
-参考现有 GitHub 实现，添加新的 OAuth Provider 配置。
+Refer to the existing GitHub implementation and add configuration for the new OAuth Provider.
 
-### 如何自定义搜索实现？
+### How do I customize the search implementation?
 
-实现 `SearchIndexService` 和 `SearchQueryService` 接口。
+Implement the `SearchIndexService` and `SearchQueryService` interfaces.
 
-## 下一步
+## Next Steps
 
-- [故障排查](./troubleshooting) - 问题诊断
+- [Troubleshooting](./troubleshooting) - Problem diagnosis

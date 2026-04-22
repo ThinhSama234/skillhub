@@ -1,162 +1,162 @@
-# skillhub 产品定位与 MVP 范围
+# skillhub Product Direction & MVP Scope
 
-## 1. 定位
+## 1. Positioning
 
-单实例共享技能注册中心（Skills Hub / Registry），不是多租户平台。
+A single-instance shared skill registry (Skills Hub / Registry), not a multi-tenant platform.
 
-- 平台只有一个共享注册中心实例
-- 隔离边界是 namespace，不是租户
-- `@global` 是平台级公共空间，由平台管理员管理
-- `@team-*` 是协作与治理边界（部门/团队），不是租户边界
-- 公共技能（visibility=PUBLIC）匿名可浏览和下载
+- The platform has only one shared registry instance
+- The isolation boundary is the namespace, not the tenant
+- `@global` is the platform-level public space, managed by platform administrators
+- `@team-*` is a collaboration and governance boundary (department/team), not a tenant boundary
+- Public skills (visibility=PUBLIC) can be browsed and downloaded anonymously
 
-以 ClawHub 为产品蓝本（继承产品模型，不照搬技术实现），以 OpenSkills 借鉴 SKILL.md 格式和目录结构约定（不兼容其客户端运行时行为）。
+ClawHub is used as the product reference (inheriting the product model, not copying the technical implementation), and OpenSkills is referenced for its SKILL.md format and directory structure conventions (without compatibility with its client runtime behavior).
 
-同时，一期必须提供 ClawHub CLI 协议兼容层：服务端需要暴露一组与 ClawHub CLI 兼容的 registry API，使现有 ClawHub CLI 在不修改或仅最小配置修改的前提下可完成 registry 侧查询、解析、下载、发布、校验等核心操作。
+Additionally, the first phase must provide a ClawHub CLI protocol compatibility layer: the server must expose a set of registry APIs compatible with the ClawHub CLI, enabling existing ClawHub CLI clients to perform core registry operations—search, resolve, download, publish, and validate—without modification or with only minimal configuration changes.
 
-## 1.2 身份主键约束（已冻结）
+## 1.2 Identity Primary Key Constraints (Frozen)
 
-- 用户身份主键全链路统一使用 `string`，不得使用 `int` / `long` / `bigint` 作为平台用户标识的正式契约类型。
-- 该约束覆盖认证主体、API 入参/出参、权限判定、审计、资源 owner、creator、updater、reviewer、actor、submittedBy 等全部用户关联字段。
-- 原因：平台需要兼容外部 SSO / OAuth / OIDC / SCIM 等身份源，外部 UID 通常是稳定字符串，不应先压缩为本地自增整数再作为系统主契约继续传播。
-- 旧版草案中任何“整型用户标识”写法都已失效，当前唯一有效约束是“平台用户标识全链路使用字符串主键”。
+- The user identity primary key must use `string` throughout the entire system; `int` / `long` / `bigint` must not be used as the formal contract type for platform user identifiers.
+- This constraint covers all user-related fields: authentication principal, API input/output parameters, permission evaluation, audit logs, resource owner, creator, updater, reviewer, actor, submittedBy, and all equivalent fields.
+- Rationale: The platform must be compatible with external SSO / OAuth / OIDC / SCIM identity providers. External UIDs are typically stable strings and should not be compressed into local auto-increment integers to be propagated as system primary keys.
+- Any "integer user identifier" found in older draft documents is now invalid. The only current valid constraint is: "platform user identifiers use string primary keys throughout the entire system."
 
-### 1.1 技能坐标体系（已冻结）
+### 1.1 Skill Coordinate System (Frozen)
 
-skillhub 内部使用 namespace 坐标模型：`@{namespace_slug}/{skill_slug}`。
+skillhub uses a namespace coordinate model internally: `@{namespace_slug}/{skill_slug}`.
 
-ClawHub CLI 使用单一 slug 模型，slug 校验规则为 `[a-z0-9]([a-z0-9-]*[a-z0-9])?`，不允许 `/` 出现。
+The ClawHub CLI uses a single-slug model where the slug validation rule is `[a-z0-9]([a-z0-9-]*[a-z0-9])?`, and `/` is not permitted.
 
-为同时满足两套模型，定义以下双向映射规则：
+To satisfy both models simultaneously, the following bidirectional mapping rules are defined:
 
-**映射规则：**
+**Mapping Rules:**
 
-| skillhub 坐标 | 兼容层 canonical slug | 说明 |
+| skillhub Coordinate | Compatibility Layer Canonical Slug | Description |
 |---|---|---|
-| `@global/my-skill` | `my-skill` | 全局空间省略前缀，直接使用 skill slug |
-| `@team-name/my-skill` | `team-name--my-skill` | 团队空间使用 `{namespace_slug}--{skill_slug}` 格式 |
+| `@global/my-skill` | `my-skill` | Global namespace omits the prefix; skill slug is used directly |
+| `@team-name/my-skill` | `team-name--my-skill` | Team namespace uses the `{namespace_slug}--{skill_slug}` format |
 
-**约束规则：**
-- 分隔符为双连字符 `--`
-- skill slug 和 namespace slug 均禁止包含 `--`（在校验规则中追加此限制）
-- slug 格式校验更新为：`[a-z0-9]([a-z0-9-]*[a-z0-9])?`，且不得包含连续两个以上的连字符 `--`
-- 兼容层解析 canonical slug 时：包含 `--` 则拆分为 `namespace_slug` + `skill_slug`，不包含则视为 `@global/{slug}`
-- 冲突规则：如果 `@global/team-name--my-skill` 与 `@team-name/my-skill` 产生冲突，以 `--` 拆分优先（即优先解析为团队空间技能）。全局空间的 skill slug 禁止包含 `--` 以避免歧义
-- 保留字规则：namespace slug 保留词列表同样适用于 canonical slug 的 namespace 部分
+**Constraint Rules:**
+- The separator is a double hyphen `--`
+- Both skill slugs and namespace slugs must not contain `--` (this restriction is added to the validation rules)
+- The slug format validation is updated to: `[a-z0-9]([a-z0-9-]*[a-z0-9])?`, and must not contain two or more consecutive hyphens `--`
+- When the compatibility layer parses a canonical slug: if it contains `--`, it is split into `namespace_slug` + `skill_slug`; otherwise, it is treated as `@global/{slug}`
+- Conflict rule: if `@global/team-name--my-skill` conflicts with `@team-name/my-skill`, the `--` split takes priority (i.e., it is parsed as a team namespace skill first). Global namespace skill slugs must not contain `--` to avoid ambiguity
+- Reserved word rule: the namespace slug reserved word list also applies to the namespace portion of a canonical slug
 
-**显示规则：**
-- Web 端始终显示完整坐标：`@global/my-skill`、`@team-name/my-skill`
-- ClawHub CLI 兼容层返回 canonical slug：`my-skill`、`team-name--my-skill`
-- skillhub 自有 CLI 支持两种格式输入，内部统一转换为 namespace 坐标
+**Display Rules:**
+- The web UI always displays the full coordinate: `@global/my-skill`, `@team-name/my-skill`
+- The ClawHub CLI compatibility layer returns canonical slugs: `my-skill`, `team-name--my-skill`
+- The skillhub native CLI supports both formats as input; internally they are uniformly converted to namespace coordinates
 
-**Well-known 发现：**
-- skillhub 服务端提供 `/.well-known/clawhub.json`，返回 `{ "apiBase": "/api/v1" }`
-- ClawHub CLI 通过此机制自动发现兼容层 API 基地址
+**Well-known Discovery:**
+- The skillhub server provides `/.well-known/clawhub.json`, returning `{ "apiBase": "/api/v1" }`
+- The ClawHub CLI uses this mechanism to automatically discover the base address of the compatibility layer API
 
-## 2. 参考项目取舍
+## 2. Reference Project Trade-offs
 
-### 2.1 继承 ClawHub 的部分
+### 2.1 What is Inherited from ClawHub
 
-- Skill Registry 的整体产品边界
-- 技能版本、标签、下载的业务模型
-- 发布后治理机制（报告、标记、隐藏、撤回）
-- Web 浏览、详情页、上传发布、管理后台的功能切分
-- 公共查询 API 与 CLI API 的双通道设计
-- ClawHub CLI 所依赖的 registry API 协议面
-- Skill 元数据提取与服务端校验思路
-- 审计、收藏、评分、统计、运营标签等扩展位
+- Overall product boundary of the Skill Registry
+- Business model for skill versions, tags, and downloads
+- Post-publish governance mechanisms (reporting, flagging, hiding, withdrawal)
+- Feature breakdown for web browsing, detail pages, upload/publish, and admin console
+- Dual-channel design for public query API and CLI API
+- Registry API protocol surface on which the ClawHub CLI depends
+- Skill metadata extraction and server-side validation approach
+- Extension points for audit, favorites, ratings, statistics, and operational tags
 
-不直接继承：
-- Convex 数据模型与运行时
-- 向量检索的一期实现方式
+Not directly inherited:
+- Convex data model and runtime
+- Phase 1 implementation of vector search
 
-### 2.2 借鉴 OpenSkills 的部分
+### 2.2 What is Borrowed from OpenSkills
 
-- `SKILL.md` 格式兼容（frontmatter + markdown body）
-- 技能包目录结构约定（SKILL.md + references/ + scripts/ + assets/）
-- 四级目录优先级（`.agent/skills` → `~/.agent/skills` → `.claude/skills` → `~/.claude/skills`）
-- 目录名作为 lookup key（安装后目录名 = skill slug）
-- AGENTS.md `<skill>` 描述块格式兼容
-- 目标：skillhub CLI 安装的技能可被 OpenSkills/Claude 兼容客户端发现和使用
+- `SKILL.md` format compatibility (frontmatter + markdown body)
+- Skill package directory structure conventions (SKILL.md + references/ + scripts/ + assets/)
+- Four-level directory priority (`.agent/skills` → `~/.agent/skills` → `.claude/skills` → `~/.claude/skills`)
+- Directory name as lookup key (after installation, directory name = skill slug)
+- AGENTS.md `<skill>` description block format compatibility
+- Goal: skills installed by the skillhub CLI can be discovered and used by OpenSkills/Claude-compatible clients
 
-不直接继承：
-- 以 CLI 为中心的产品定位
-- "无服务端"的前提
+Not directly inherited:
+- CLI-centric product positioning
+- "No server" premise
 
-## 3. 产品原则
+## 3. Product Principles
 
-- Hub 优先：服务端是核心，CLI 和 Agent 集成是入口能力
-- 兼容优先：兼容 `SKILL.md` 及常见目录约定
-- CLI 兼容优先：除 skillhub CLI 外，一期明确要求实现 ClawHub CLI 协议兼容层
-- 分层优先：搜索、对象存储都必须有可替换边界
-- 开放认证：基于标准 OAuth2 协议，一期 GitHub 登录，架构支持后续扩展多 Provider
-- 审计优先：企业内部分发平台必须保留发布、下载、删除、授权等审计链路
+- Hub First: the server is the core; CLI and agent integration are entry-point capabilities
+- Compatibility First: compatible with `SKILL.md` and common directory conventions
+- CLI Compatibility First: in addition to the skillhub CLI, the first phase explicitly requires a ClawHub CLI protocol compatibility layer
+- Layered First: both search and object storage must have replaceable boundaries
+- Open Authentication: based on standard OAuth2 protocol; Phase 1 uses GitHub login, with architecture supporting future extension to multiple providers
+- Audit First: enterprise internal distribution platforms must retain audit trails for publish, download, delete, and authorization operations
 
-## 4. 一期 MVP 功能
+## 4. Phase 1 MVP Features
 
-核心能力：
-- 技能发布（当前版本采用“提交 → 审核 → 上线”；`SUPER_ADMIN` 保留直发能力）
-- 技能版本管理（semver + 标签）
-- 技能浏览、详情、下载（公共技能匿名可访问）
-- 标签管理（`latest` 系统保留只读 + 自定义标签人工维护）
-- 技能包文件校验与 SKILL.md 元数据抽取
-- 基于 PostgreSQL 全文索引的搜索
+Core capabilities:
+- Skill publishing (current version uses "submit → review → publish"; `SUPER_ADMIN` retains direct-publish capability)
+- Skill version management (semver + tags)
+- Skill browsing, detail pages, and downloads (public skills accessible anonymously)
+- Tag management (`latest` is a system-reserved read-only tag + custom tags maintained manually)
+- Skill package file validation and SKILL.md metadata extraction
+- Search based on PostgreSQL full-text indexing
 
-命名空间与组织：
-- 单一全局命名空间（`@global/skill-name`），由平台管理员管理，不支持多个平台级 namespace
-- 团队/部门命名空间（`@team-slug/skill-name`）
-- 命名空间成员管理
-- 创建技能时选择归属空间
+Namespaces and organization:
+- Single global namespace (`@global/skill-name`), managed by platform administrators; multiple platform-level namespaces are not supported
+- Team/department namespaces (`@team-slug/skill-name`)
+- Namespace member management
+- Selecting the owning namespace when creating a skill
 
-审核流程：
-- 当前版本：普通用户发布后进入审核，审核通过后上线
-- `SUPER_ADMIN` 发布可直达 `PUBLISHED`
-- 分级审核：团队空间由团队管理员审核，全局空间由平台管理员审核
-- 团队技能提升到全局需平台管理员二次审核
-- 平台管理员只负责全局空间审核与提升审核，不介入团队空间审核
-- 当前不引入自动审核；`PrePublishValidator` 仅作为未来扩展点保留，默认实现为 `NoOp`
-- 撤回审核语义统一为 `PENDING_REVIEW → DRAFT`，不再走删除版本记录
-- skill 生命周期管理读模型统一为 `headlineVersion / publishedVersion / ownerPreviewVersion / resolutionMode`
-- `hidden` 是独立治理覆盖层，不属于 skill 容器状态机
+Review workflow:
+- Current version: ordinary users submit for review; the skill goes live after approval
+- `SUPER_ADMIN` publishing goes directly to `PUBLISHED`
+- Tiered review: team namespaces are reviewed by team administrators; the global namespace is reviewed by platform administrators
+- Promoting a team skill to global requires a secondary review by the platform administrator
+- Platform administrators are responsible only for global namespace review and promotion review; they do not intervene in team namespace review
+- Automated review is not introduced in the current version; `PrePublishValidator` is retained only as a future extension point, with the default implementation being `NoOp`
+- The semantics of withdrawing a review are unified as `PENDING_REVIEW → DRAFT`; this no longer involves deleting version records
+- The skill lifecycle read model is unified as `headlineVersion / publishedVersion / ownerPreviewVersion / resolutionMode`
+- `hidden` is an independent governance override layer and is not part of the skill container state machine
 
-认证与权限：
-- OAuth2 标准登录（一期 GitHub OAuth）
-- CLI 认证采用 OAuth Device Flow，由 Web 授权后签发 CLI 可用凭证
-- API Token 保留为平台通用凭证能力，用于自动化、兼容层和后续扩展
-- ClawHub CLI 协议兼容层（一期聚焦 search、resolve、download、publish、whoami 等核心接口）
-- RBAC 角色权限体系（平台角色：SUPER_ADMIN / SKILL_ADMIN / USER_ADMIN / AUDITOR + 命名空间角色）
-- 管理后台：用户角色管理、发布审核
+Authentication and permissions:
+- OAuth2 standard login (Phase 1: GitHub OAuth)
+- CLI authentication uses OAuth Device Flow; after authorization via the web, credentials usable by the CLI are issued
+- API Tokens are retained as a general-purpose platform credential capability for automation, the compatibility layer, and future extensions
+- ClawHub CLI protocol compatibility layer (Phase 1 focuses on core endpoints: search, resolve, download, publish, whoami, etc.)
+- RBAC role permission system (platform roles: SUPER_ADMIN / SKILL_ADMIN / USER_ADMIN / AUDITOR + namespace roles)
+- Admin console: user role management, publish review
 
-社交功能：
-- 收藏（star）
-- 评分（1-5 分）
+Social features:
+- Favorites (star)
+- Ratings (1–5 stars)
 
-审计：
-- 发布、审核、下载、删除等关键操作审计
+Audit:
+- Audit of key operations: publishing, review, download, deletion, etc.
 
-## 5. 一期明确不做（含后续规划）
+## 5. Explicitly Out of Scope for Phase 1 (with Future Planning)
 
-- 评论 → Phase 5 上线，含举报机制
-- 自动安全扫描 → Phase 5 上线，接入 `PrePublishValidator` 扩展点
-- 举报/标记机制 → Phase 5 上线，配合评论和治理闭环
-- 向量搜索 → 当前进入第一阶段规划，仅做搜索增强，不引入推荐系统
-- 在线编辑器 → 暂不规划
-- Webhook/事件通知 → Phase 5（预留扩展点）
-- 技能依赖/兼容性声明 → 暂不规划（预留 `parsed_metadata_json` 字段）
+- Comments → Phase 5 launch, including a reporting mechanism
+- Automated security scanning → Phase 5 launch, integrating with the `PrePublishValidator` extension point
+- Reporting/flagging mechanism → Phase 5 launch, paired with comments and governance loop
+- Vector search → currently entering the Phase 1 planning stage; only as a search enhancement, no recommendation system
+- Online editor → not currently planned
+- Webhook/event notifications → Phase 5 (extension point reserved)
+- Skill dependency/compatibility declarations → not currently planned (the `parsed_metadata_json` field is reserved)
 
-### latest 语义说明
+### Notes on `latest` Semantics
 
-这是有意的产品决策，不是继承 ClawHub 的回滚模型：
+This is an intentional product decision, not inherited from ClawHub's rollback model:
 
-- `latest` 自动跟随最新已发布版本，只读，不可手动移动
-- 回滚/稳定通道管理通过自定义标签实现（如 `stable`、`beta`、`stable-2026q1`）
-- ClawHub 的"通过移动 latest 做回滚"能力被替换为"通过自定义标签做通道管理"
+- `latest` automatically follows the most recently published version; it is read-only and cannot be moved manually
+- Rollback and stable channel management are handled through custom tags (e.g., `stable`, `beta`, `stable-2026q1`)
+- ClawHub's ability to "rollback by moving latest" is replaced by "channel management through custom tags"
 
-## 6. 一期核心约束
+## 6. Phase 1 Core Constraints
 
-- Skill 包视为"文本资源包"，不接受二进制大文件
-- 技能包主入口文件固定为 `SKILL.md`
-- 元数据以 `SKILL.md` frontmatter 为主，数据库持久化解析结果
-- 文件内容原文存对象存储，检索面向数据库中的派生字段与可索引文本
-- Web 认证、CLI Device Flow 与 API Token 凭证统一汇聚到平台用户体系
-- 公共技能（visibility=PUBLIC）匿名可浏览和下载，无需登录
+- Skill packages are treated as "text resource packages"; large binary files are not accepted
+- The main entry file of a skill package is fixed as `SKILL.md`
+- Metadata uses the `SKILL.md` frontmatter as the primary source; parsed results are persisted in the database
+- File content is stored as-is in object storage; retrieval targets derived fields and indexable text stored in the database
+- Web authentication, CLI Device Flow, and API Token credentials are all unified into the platform user system
+- Public skills (visibility=PUBLIC) can be browsed and downloaded anonymously without login

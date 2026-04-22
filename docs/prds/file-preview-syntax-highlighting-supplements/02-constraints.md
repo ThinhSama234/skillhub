@@ -1,125 +1,125 @@
 ---
-name: 文件预览语法高亮约束规范
-description: 定义功能边界、业务规则、技术约束和依赖关系
+name: File Preview Syntax Highlighting Constraints Specification
+description: Defines feature boundaries, business rules, technical constraints, and dependency relationships
 type: constraints
 ---
 
-# 约束规范：文件预览语法高亮
+# Constraints Specification: File Preview Syntax Highlighting
 
-## 1. 功能边界
+## 1. Feature Boundaries
 
-### 本次发布包含
-- 常见编程语言语法高亮（Python, Shell, Java, JS/TS, Go, Rust, C/C++, Ruby, PHP）
-- 配置文件语法高亮（JSON, YAML, TOML, XML）
-- 文件大小阈值控制（500KB 语法高亮阈值，1MB 预览上限）
-- 错误降级处理（无法识别语言、渲染失败时显示纯文本）
-- 主题自动切换（跟随系统 dark/light 模式）
-- 复制代码按钮（复用现有实现）
+### Included in This Release
+- Syntax highlighting for common programming languages (Python, Shell, Java, JS/TS, Go, Rust, C/C++, Ruby, PHP)
+- Syntax highlighting for configuration files (JSON, YAML, TOML, XML)
+- File size threshold control (500KB syntax highlighting threshold, 1MB preview limit)
+- Error fallback handling (display plain text when language is unrecognized or rendering fails)
+- Automatic theme switching (follows system dark/light mode)
+- Copy code button (reuse existing implementation)
 
-### 明确排除
-- ❌ 行号显示
-- ❌ 代码折叠/展开功能
-- ❌ 语法错误检测和提示
-- ❌ 代码搜索和跳转
-- ❌ 自定义语法高亮主题
-- ❌ 代码编辑功能
-- ❌ 代码格式化
-- ❌ 虚拟滚动（大文件分页加载）
+### Explicitly Excluded
+- ❌ Line number display
+- ❌ Code folding/unfolding
+- ❌ Syntax error detection and hints
+- ❌ Code search and navigation
+- ❌ Custom syntax highlighting themes
+- ❌ Code editing
+- ❌ Code formatting
+- ❌ Virtual scrolling (paginated loading for large files)
 
-### 未来可能性（不在本次实现）
-- 行号显示（用户反馈后考虑）
-- 代码折叠（长文件场景）
-- 自定义主题配置（用户偏好设置）
-- 更多语言支持（按需添加）
-- 代码片段分享（生成链接）
+### Future Possibilities (Not in This Release)
+- Line number display (consider after user feedback)
+- Code folding (for long file scenarios)
+- Custom theme configuration (user preference settings)
+- More language support (added on demand)
+- Code snippet sharing (generate link)
 
-## 2. 业务规则
+## 2. Business Rules
 
-| 规则 ID | 描述 | 触发条件 | 预期行为 | 优先级 |
+| Rule ID | Description | Trigger Condition | Expected Behavior | Priority |
 |---------|------|---------|---------|--------|
-| BR-001 | 文件大小阈值控制 | 文件大小 > 500KB | 显示纯文本（无语法高亮） | Must |
-| BR-002 | 文件预览上限 | 文件大小 > 1MB | 仅显示下载按钮，不预览 | Must |
-| BR-003 | 语言识别失败降级 | 无法识别文件语言 | 显示纯文本，不报错 | Must |
-| BR-004 | 渲染失败降级 | 语法高亮渲染失败 | 降级到纯文本显示 | Must |
-| BR-005 | 内存不足降级 | 浏览器内存不足 | 降级到纯文本显示，显示提示 | Should |
-| BR-006 | 主题跟随系统 | 用户切换系统主题 | 语法高亮主题自动切换 | Must |
-| BR-007 | 样式一致性 | 所有代码渲染 | 与 Markdown 代码块样式一致 | Must |
-| BR-008 | 复制功能保留 | 用户点击复制按钮 | 复制完整文件内容到剪贴板 | Must |
+| BR-001 | File size threshold control | File size > 500KB | Display plain text (no syntax highlighting) | Must |
+| BR-002 | File preview limit | File size > 1MB | Show download button only, no preview | Must |
+| BR-003 | Language recognition failure fallback | File language cannot be identified | Display plain text, no error | Must |
+| BR-004 | Rendering failure fallback | Syntax highlighting rendering fails | Fall back to plain text display | Must |
+| BR-005 | Insufficient memory fallback | Browser runs out of memory | Fall back to plain text display, show notice | Should |
+| BR-006 | Theme follows system | User switches system theme | Syntax highlighting theme switches automatically | Must |
+| BR-007 | Style consistency | All code rendering | Consistent with Markdown code block styles | Must |
+| BR-008 | Copy function retained | User clicks copy button | Copy complete file content to clipboard | Must |
 
-## 3. 技术约束
+## 3. Technical Constraints
 
-### 性能约束
-- **渲染时间**：500KB 文件语法高亮渲染时间 < 500ms（P95）
-- **首次加载**：文件预览首次加载时间 < 1s（P95，包括网络请求）
-- **内存占用**：单个文件渲染内存占用 < 50MB
-- **包体积**：新增代码包体积 < 100KB（gzipped）
+### Performance Constraints
+- **Render time**: Syntax highlighting render time for a 500KB file < 500ms (P95)
+- **First load**: File preview first load time < 1s (P95, including network request)
+- **Memory usage**: Single file render memory usage < 50MB
+- **Bundle size**: New code bundle size increase < 100KB (gzipped)
 
-### 兼容性约束
-- **浏览器支持**：
+### Compatibility Constraints
+- **Browser support**:
   - Chrome 90+
   - Firefox 88+
   - Safari 14+
   - Edge 90+
-- **移动端**：支持响应式布局，但不优化触摸交互
-- **屏幕阅读器**：基本可访问性支持（代码内容可读）
+- **Mobile**: Responsive layout supported; touch interaction not optimized
+- **Screen readers**: Basic accessibility support (code content is readable)
 
-### 安全约束
-- **XSS 防护**：使用 `dangerouslySetInnerHTML` 时确保 highlight.js 输出已转义
-- **路径遍历防护**：复用现有的路径验证（禁止 `..` 和绝对路径）
-- **内容安全策略**：不允许用户自定义语法高亮规则
-- **敏感信息**：不在前端缓存文件内容
+### Security Constraints
+- **XSS protection**: When using `dangerouslySetInnerHTML`, ensure highlight.js output is escaped
+- **Path traversal protection**: Reuse existing path validation (disallow `..` and absolute paths)
+- **Content security policy**: Do not allow users to customize syntax highlighting rules
+- **Sensitive information**: Do not cache file content on the frontend
 
-### 可扩展性约束
-- **语言扩展**：通过按需导入语言包扩展，不影响初始包体积
-- **主题扩展**：预留主题切换接口，当前仅支持系统主题
-- **渲染器扩展**：CodeRenderer 组件设计为可替换（未来可切换到其他引擎）
+### Extensibility Constraints
+- **Language extension**: Extend by importing language packages on demand; does not affect initial bundle size
+- **Theme extension**: Reserve a theme-switching interface; currently only system theme is supported
+- **Renderer extension**: CodeRenderer component is designed to be replaceable (can switch to another engine in the future)
 
-## 4. 依赖关系
+## 4. Dependency Relationships
 
-### 上游依赖
-| 依赖项 | 版本 | 用途 | 风险 |
+### Upstream Dependencies
+| Dependency | Version | Purpose | Risk |
 |--------|------|------|------|
-| highlight.js | ^11.x | 语法高亮引擎 | 低（成熟稳定） |
-| rehype-highlight | ^7.0.2 | Markdown 代码块高亮（已有） | 低（已在使用） |
-| react-markdown | ^10.1.0 | Markdown 渲染（已有） | 低（已在使用） |
+| highlight.js | ^11.x | Syntax highlighting engine | Low (mature and stable) |
+| rehype-highlight | ^7.0.2 | Markdown code block highlighting (already in use) | Low (already in use) |
+| react-markdown | ^10.1.0 | Markdown rendering (already in use) | Low (already in use) |
 
-### 下游影响
-| 影响模块 | 影响类型 | 影响描述 | 缓解措施 |
+### Downstream Impact
+| Impacted Module | Impact Type | Impact Description | Mitigation |
 |---------|---------|---------|---------|
-| 文件预览弹窗 | 功能增强 | 新增语法高亮渲染逻辑 | 向后兼容，不影响现有功能 |
-| 文件类型工具 | 功能扩展 | 新增语言映射函数 | 纯新增，不修改现有函数 |
-| 样式系统 | 样式复用 | 复用 Markdown 代码块样式 | 无影响，只读取现有样式 |
+| File preview dialog | Feature enhancement | New syntax highlighting render logic | Backward compatible, does not affect existing functionality |
+| File type utilities | Feature extension | New language mapping function | Pure addition, does not modify existing functions |
+| Style system | Style reuse | Reuses Markdown code block styles | No impact; only reads existing styles |
 
-### 外部依赖
-- **云存储服务**：文件内容读取依赖 ObjectStorageService
-- **后端 API**：`GET /api/v1/reviews/{id}/file?path={filePath}`
-- **Redis**：后续优化阶段用于缓存（本次不实现）
+### External Dependencies
+- **Cloud storage service**: File content reading depends on ObjectStorageService
+- **Backend API**: `GET /api/v1/reviews/{id}/file?path={filePath}`
+- **Redis**: For caching in a future optimization phase (not implemented in this release)
 
-## 5. 非功能性需求
+## 5. Non-Functional Requirements
 
-### 可用性
-- **错误提示**：渲染失败时显示友好的错误提示
-- **加载状态**：显示 loading 状态，避免用户等待焦虑
-- **降级体验**：降级到纯文本时不影响核心阅读功能
+### Usability
+- **Error messages**: Display friendly error messages when rendering fails
+- **Loading state**: Show loading state to prevent user anxiety during waits
+- **Fallback experience**: Falling back to plain text does not affect core reading functionality
 
-### 可维护性
-- **代码组织**：CodeRenderer 组件独立，易于测试和替换
-- **语言配置**：语言映射表集中管理，易于扩展
-- **样式管理**：复用现有样式，减少维护成本
+### Maintainability
+- **Code organization**: CodeRenderer component is independent, easy to test and replace
+- **Language configuration**: Language mapping table is centrally managed and easy to extend
+- **Style management**: Reuse existing styles to reduce maintenance cost
 
-### 可测试性
-- **单元测试**：CodeRenderer 组件和语言映射函数可独立测试
-- **集成测试**：文件预览流程可端到端测试
-- **性能测试**：渲染时间和内存占用可量化测试
+### Testability
+- **Unit tests**: CodeRenderer component and language mapping function can be tested independently
+- **Integration tests**: File preview flow can be tested end-to-end
+- **Performance tests**: Render time and memory usage can be quantifiably tested
 
-### 可观测性
-- **错误日志**：记录语法高亮失败的错误信息
-- **性能指标**：记录渲染时间（通过 RUM）
-- **用户行为**：记录文件预览使用情况（后续优化依据）
+### Observability
+- **Error logs**: Record error information for syntax highlighting failures
+- **Performance metrics**: Record render time (via RUM)
+- **User behavior**: Record file preview usage (basis for future optimizations)
 
 ---
 
-## 变更日志
-| 日期 | 章节 | 变更 | 原因 | 触发者 |
+## Changelog
+| Date | Section | Change | Reason | Author |
 |------|------|------|------|--------|
-| 2026-03-22 | 初始版本 | 创建约束规范文档 | 需求澄清完成 | requirements-clarity |
+| 2026-03-22 | Initial version | Created constraints specification document | Requirements clarification complete | requirements-clarity |

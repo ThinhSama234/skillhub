@@ -1,155 +1,155 @@
-# skillhub 交付路线
+# skillhub Delivery Roadmap
 
-## Phase 0：设计定稿（当前阶段）
+## Phase 0: Design Finalization (Current Phase)
 
-产出：架构设计文档、数据库 DDL、API OpenAPI spec 草案、前端线框图
+Deliverables: Architecture design documents, database DDL, API OpenAPI spec draft, frontend wireframes
 
-已冻结决策：
-- 技能坐标体系：`@{namespace_slug}/{skill_slug}`，兼容层使用 `--` 双连字符映射（详见 `00-product-direction.md` 1.1 节）
-- 一期同步发布模型，暂不考虑异步发布
-- API Token 一期继承用户全部权限（非最小权限），后续版本细化
-- CLI 主认证切换为 OAuth Device Flow，Bearer Token 统一用于 CLI API 和兼容层
-- ClawHub CLI 兼容层基地址 `/api/v1`，通过 `/.well-known/clawhub.json` 发现
+Frozen decisions:
+- Skill coordinate system: `@{namespace_slug}/{skill_slug}`, compatibility layer uses `--` double-hyphen mapping (see `00-product-direction.md` section 1.1)
+- Phase 1 synchronous publish model; async publish not considered for now
+- API Token in Phase 1 inherits all user permissions (not least-privilege); to be refined in future versions
+- CLI primary authentication switches to OAuth Device Flow; Bearer Token is used uniformly for CLI API and compatibility layer
+- ClawHub CLI compatibility layer base URL `/api/v1`, discovered via `/.well-known/clawhub.json`
 
-## Phase 1：工程骨架 + 认证打通
+## Phase 1: Engineering Skeleton + Authentication Integration
 
-### 后端
+### Backend
 
-- Maven 多模块初始化（6 个模块）
-- Spring Boot 启动、配置、Profile 分层
-- Flyway + 数据库初始化
-- Redis 集成（Session + 分布式锁）
-- Spring Security OAuth2 Client 配置（GitHub OAuth 登录）
-- CustomOAuth2UserService + IdentityBindingService（自动注册/绑定）
-- Spring Session (Redis) 管理、API Token 签发校验
-- RBAC 基础（SUPER_ADMIN / SKILL_ADMIN / USER_ADMIN / AUDITOR + 命名空间角色）
-- 全局异常处理、requestId 透传、日志格式
-- Springdoc OpenAPI、健康检查
-- CSRF 防护（Cookie-to-Header 模式，CLI API 豁免）
-- 本地开发 MockAuthFilter（`local` profile）
-- 基础限流：Nginx Ingress `limit-req` 按 IP 限流（认证/搜索/下载接口）
+- Maven multi-module initialization (6 modules)
+- Spring Boot startup, configuration, profile layering
+- Flyway + database initialization
+- Redis integration (Session + distributed lock)
+- Spring Security OAuth2 Client configuration (GitHub OAuth login)
+- CustomOAuth2UserService + IdentityBindingService (auto-register/bind)
+- Spring Session (Redis) management, API Token issuance and validation
+- RBAC foundation (SUPER_ADMIN / SKILL_ADMIN / USER_ADMIN / AUDITOR + namespace roles)
+- Global exception handling, requestId propagation, log format
+- Springdoc OpenAPI, health check
+- CSRF protection (Cookie-to-Header mode, CLI API exempt)
+- Local development MockAuthFilter (`local` profile)
+- Basic rate limiting: Nginx Ingress `limit-req` per-IP rate limiting (auth/search/download endpoints)
 
-### 前端
+### Frontend
 
-- Vite + React + TypeScript 初始化
-- shadcn/ui + Tailwind 配置
-- TanStack Router 路由骨架、TanStack Query 配置
-- openapi-fetch 客户端生成管线
-- 布局组件、OAuth 登录流程（调用 `/api/v1/auth/providers` → 跳转）
-- 登录态检测（`/api/v1/auth/me`）+ 路由守卫
-- Makefile 顶层编排
+- Vite + React + TypeScript initialization
+- shadcn/ui + Tailwind configuration
+- TanStack Router routing skeleton, TanStack Query configuration
+- openapi-fetch client generation pipeline
+- Layout components, OAuth login flow (call `/api/v1/auth/providers` → redirect)
+- Login state detection (`/api/v1/auth/me`) + route guards
+- Makefile top-level orchestration
 
-### 验收
+### Acceptance Criteria
 
-前后端能跑，GitHub OAuth 登录可用，AccessPolicy 准入策略生效，`/api/v1/auth/me` 可用，Token 可用，OpenAPI spec 可访问，Ingress 基础限流生效
+Frontend and backend are running, GitHub OAuth login is functional, AccessPolicy admission policy is active, `/api/v1/auth/me` is available, Token is available, OpenAPI spec is accessible, Ingress basic rate limiting is active
 
-## Phase 2：命名空间 + Skill 核心链路
+## Phase 2: Namespace + Skill Core Pipeline
 
-### 后端
+### Backend
 
-- 命名空间 CRUD + 成员管理
-- 对象存储集成（LocalFile + S3 双实现）
-- 技能发布（上传 → 校验 → 存储 → 审核 / 上线，一期同步处理）
-- 技能查询（详情、版本、文件）、下载（打包 + 可见性检查，PUBLIC 匿名可下载）
-- 标签管理、搜索（PostgreSQL Full-Text，匿名搜索限 PUBLIC）
-- 异步事件基础设施
-- Rate Limiting 升级（应用层精细限流：按用户/端点分类，基于 Redis 滑动窗口）
+- Namespace CRUD + member management
+- Object storage integration (LocalFile + S3 dual implementation)
+- Skill publishing (upload → validate → store → review / publish, synchronous processing in Phase 1)
+- Skill query (detail, versions, files), download (packaging + visibility check, PUBLIC downloadable anonymously)
+- Tag management, search (PostgreSQL Full-Text, anonymous search limited to PUBLIC)
+- Async event infrastructure
+- Rate Limiting upgrade (application-layer fine-grained rate limiting: per-user/endpoint classification, based on Redis sliding window)
 
-### 前端
+### Frontend
 
-- 首页、搜索页、命名空间主页（匿名可访问）
-- 技能详情页、版本历史页（PUBLIC 匿名可浏览/下载）
-- 发布页、我的技能列表
-- 命名空间管理页
+- Home page, search page, namespace home page (anonymous access)
+- Skill detail page, version history page (PUBLIC anonymously browsable/downloadable)
+- Publish page, my skills list
+- Namespace management page
 
-### 验收
+### Acceptance Criteria
 
-完整发布 → 存储 → 审核 → 查询 → 下载链路可用，搜索可用，命名空间隔离生效，匿名用户可浏览/下载公共技能
+Full publish → storage → review → query → download pipeline is functional, search is functional, namespace isolation is active, anonymous users can browse/download public skills
 
-## Phase 3：审核流程 + 评分收藏 + CLI API / ClawHub 兼容层
+## Phase 3: Review Workflow + Rating/Stars + CLI API / ClawHub Compatibility Layer
 
-### 后端
+### Backend
 
-- 审核流程（提交 → 审核 → 发布，含乐观锁）
-- 团队技能提升到全局（promotion_request 流程）
-- 评分 + 收藏 + 计数器（原子更新）
-- OAuth Device Flow（device code、授权确认、轮询换取 Bearer Token）
-- CLI API（whoami、publish、resolve、check）
-- ClawHub CLI 协议兼容层（`/api/v1` 端点：search、resolve、download、publish、whoami）
-- 兼容层 canonical slug 映射（`--` 双连字符规则）
-- `/.well-known/clawhub.json` 发现端点
-- 协议适配器与兼容性测试（针对 ClawHub CLI 的真实请求/响应样例）
-- 审计日志（同步落库）、幂等去重（idempotency_record + Redis）
+- Review workflow (submit → review → publish, with optimistic locking)
+- Team skill promotion to global (`promotion_request` workflow)
+- Rating + starring + counters (atomic updates)
+- OAuth Device Flow (device code, authorization confirmation, polling to exchange Bearer Token)
+- CLI API (whoami, publish, resolve, check)
+- ClawHub CLI protocol compatibility layer (`/api/v1` endpoints: search, resolve, download, publish, whoami)
+- Compatibility layer canonical slug mapping (`--` double-hyphen rule)
+- `/.well-known/clawhub.json` discovery endpoint
+- Protocol adapters and compatibility tests (against real ClawHub CLI request/response samples)
+- Audit logs (synchronous write to database), idempotent deduplication (`idempotency_record` + Redis)
 
-### 前端
+### Frontend
 
-- 审核中心、命名空间审核页、提升审核页
-- 评分组件 + 收藏按钮（匿名用户点击提示登录）、我的收藏页
-- Token 管理页
-- 管理后台（用户管理、角色分配、准入审批、封禁/解封）
-- 前端 API 层收口：统一迁移到 OpenAPI 生成类型 + `openapi-fetch` 客户端，淘汰业务页面里的手写 `fetch`
-- 建立 API 变更后的前端同步机制：后端 OpenAPI 更新后执行 `generate-api`，禁止生成类型与真实返回长期漂移
+- Review center, namespace review page, promotion review page
+- Rating component + star button (prompts login for anonymous users), my stars page
+- Token management page
+- Admin backend (user management, role assignment, access approval, ban/unban)
+- Frontend API layer consolidation: uniformly migrate to OpenAPI-generated types + `openapi-fetch` client, deprecate hand-written `fetch` in business pages
+- Establish a frontend sync mechanism after API changes: run `generate-api` after backend OpenAPI updates; generated types and actual responses must not drift apart long-term
 
-### 验收
+### Acceptance Criteria
 
-团队空间自治审核与全局空间平台审核生效，skillhub CLI Device Flow 可用，ClawHub CLI 通过兼容层可完成核心 registry 操作，评分收藏可用
+Team namespace self-governance review and global namespace platform review are active, skillhub CLI Device Flow is functional, ClawHub CLI can complete core registry operations via the compatibility layer, rating and starring are functional
 
-## Phase 4：运维增强 + 打磨 + 开源就绪
+## Phase 4: Operations Enhancement + Polish + Open Source Ready
 
-### 后端
+### Backend
 
-- 本地认证体系（用户名密码注册/登录 + BCrypt + 密码策略 + 账号锁定）
-- 多账号合并流程（发起 → 验证 → 确认 → 数据迁移）
-- 技能治理（隐藏/恢复 + 已发布版本撤回 YANKED）
-- 审计日志查询 API（多条件筛选 + 分页）
-- Prometheus 指标暴露（Actuator + Micrometer 自定义业务指标）
-- 性能优化（数据库索引 + S3 预签名 URL + 连接池调优）
-- 安全加固（Session Cookie 安全 + 安全响应头 + XSS 防护）
+- Local authentication system (username/password registration/login + BCrypt + password policy + account lockout)
+- Multi-account merge flow (initiate → verify → confirm → data migration)
+- Skill governance (hide/restore + yank published versions)
+- Audit log query API (multi-condition filtering + pagination)
+- Prometheus metrics exposure (Actuator + Micrometer custom business metrics)
+- Performance optimization (database indexes + S3 pre-signed URLs + connection pool tuning)
+- Security hardening (Session Cookie security + security response headers + XSS protection)
 
-### 前端
+### Frontend
 
-- 注册页、登录页扩展（用户名密码 + OAuth 双模式）
-- 密码修改页、账号合并页
-- 审计日志查询页
-- 技能隐藏/恢复/已发布版本撤回操作（管理员可见）
-- 前端代码分割（TanStack Router lazy routes）
-- rehype-sanitize XSS 防护
-- OpenAPI SDK 工程化：生成文件纳入 CI 校验，避免新增接口回退到手写调用
+- Registration page, login page extension (username/password + OAuth dual mode)
+- Password change page, account merge page
+- Audit log query page
+- Skill hide/restore/yank operations (admin-visible)
+- Frontend code splitting (TanStack Router lazy routes)
+- rehype-sanitize XSS protection
+- OpenAPI SDK engineering: generated files included in CI checks to prevent new endpoints from falling back to hand-written calls
 
-### 部署 & 开源
+### Deployment & Open Source
 
-- Docker 一键启动（多阶段 Dockerfile + docker-compose + 种子数据）
-- K8s 基础部署清单（Deployment + Service + Ingress）
-- README.md、CONTRIBUTING.md、GitHub Issue/PR 模板
-- LICENSE（Apache 2.0）、CODE_OF_CONDUCT.md
+- Docker one-click startup (multi-stage Dockerfile + docker-compose + seed data)
+- K8s basic deployment manifests (Deployment + Service + Ingress)
+- README.md, CONTRIBUTING.md, GitHub Issue/PR templates
+- LICENSE (Apache 2.0), CODE_OF_CONDUCT.md
 
-### 验收
+### Acceptance Criteria
 
-本地认证可用，多账号合并可用，技能隐藏/恢复/已发布版本撤回可用，审计日志可查询，Prometheus 指标可拉取，`docker compose up` 一键启动，K8s 清单可部署，开源基础设施齐全
+Local authentication is functional, multi-account merge is functional, skill hide/restore/yank is functional, audit logs are queryable, Prometheus metrics are scrapable, `docker compose up` starts in one click, K8s manifests are deployable, open source infrastructure is complete
 
-## Phase 5：治理闭环 + 社交
+## Phase 5: Governance Closure + Social Features
 
-- 评论功能
-- 举报/标记机制（用户举报 → 管理员处理 → 隐藏/已发布版本撤回）
-- 自动安全预检（`PrePublishValidator` 从当前 `NoOp` 扩展为真实校验链）
-- Webhook/事件通知（发布通知、审核结果通知）
-- 后续 OAuth Provider 扩展（GitLab、Google 等）
-- 向量搜索第二阶段增强（当前第一阶段仅做搜索增强，不做推荐）
+- Comments
+- Report/flag mechanism (user reports → admin handles → hide/yank)
+- Automated pre-publish security checks (`PrePublishValidator` extended from current `NoOp` to a real validation chain)
+- Webhook/event notifications (publish notifications, review result notifications)
+- Additional OAuth Provider support (GitLab, Google, etc.)
+- Vector search Phase 2 enhancement (current Phase 1 only does search enhancement, not recommendations)
 
-## 主要风险与应对
+## Key Risks and Mitigations
 
-| 风险 | 应对 |
-|------|------|
-| GitHub OAuth 回调配置复杂 | 本地用 MockAuthFilter 解耦，OAuth 联调可并行 |
-| 审核流程需求变更 | 生命周期状态机已收敛到 `DRAFT / PENDING_REVIEW / PUBLISHED / REJECTED / YANKED`，读模型通过统一 projection 暴露 |
-| 搜索效果不佳 | SPI 架构允许随时切换实现 |
-| 前后端接口频繁变更 | OpenAPI spec 先行，类型自动生成 |
-| 新增 OAuth Provider | Spring Security OAuth2 原生多 Provider 支持，只需配置 + 属性映射 |
-| ClawHub CLI 协议细节与现有模型不完全一致 | 兼容层使用 `--` 双连字符 canonical slug 映射，独立 Controller 层适配，协议回归测试覆盖 |
+| Risk | Mitigation |
+|------|-----------|
+| GitHub OAuth callback configuration complexity | Use MockAuthFilter locally to decouple; OAuth integration testing can proceed in parallel |
+| Review workflow requirement changes | Lifecycle state machine is converged to `DRAFT / PENDING_REVIEW / PUBLISHED / REJECTED / YANKED`; read model exposed via unified projection |
+| Poor search quality | SPI architecture allows switching implementations at any time |
+| Frequent frontend-backend interface changes | OpenAPI spec first; types auto-generated |
+| Adding new OAuth Providers | Spring Security OAuth2 native multi-provider support; only configuration + property mapping needed |
+| ClawHub CLI protocol details not fully consistent with existing model | Compatibility layer uses `--` double-hyphen canonical slug mapping, independent controller layer adapter, protocol regression tests coverage |
 
-## 测试演进策略
+## Testing Evolution Strategy
 
-- 当前阶段（Phase 2 验证优先）：本地通过 `docker-compose.yml` 启动 PostgreSQL、Redis、MinIO，后端与集成测试直接连接真实依赖，优先验证发布、搜索、下载、限流等基础设施相关链路
-- 后续阶段（工程化收口）：逐步把后端集成测试迁移到 Testcontainers，由测试代码按需拉起 PostgreSQL、Redis、MinIO，减少对手工启动本地依赖的要求，并纳入 CI
-- 前端阶段性要求：后端 API 契约稳定后，前端必须同步刷新 OpenAPI 生成类型并校验关键页面；统一响应结构变更不允许只改后端不改前端
-- 原则：单元测试可继续使用 mock/in-memory 替身，但 Phase 2/3 的核心验收必须保留一组基于真实中间件的集成测试，避免 Redis Lua、对象存储、Flyway、搜索 SQL 等问题被假实现掩盖
+- Current phase (Phase 2 validation-first): Start PostgreSQL, Redis, MinIO locally via `docker-compose.yml`; backend and integration tests connect directly to real dependencies, prioritizing validation of publish, search, download, rate limiting, and other infrastructure-related pipelines
+- Later phases (engineering consolidation): Gradually migrate backend integration tests to Testcontainers, where test code spins up PostgreSQL, Redis, MinIO on demand, reducing dependency on manually started local services, and integrate into CI
+- Frontend phased requirements: After backend API contracts stabilize, the frontend must synchronously refresh OpenAPI-generated types and validate key pages; unified response structure changes cannot be applied only on the backend without updating the frontend
+- Principle: Unit tests can continue using mocks/in-memory stubs, but Phase 2/3 core acceptance must retain a set of integration tests based on real middleware to avoid Redis Lua, object storage, Flyway, and search SQL issues being masked by fake implementations

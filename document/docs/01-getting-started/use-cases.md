@@ -1,72 +1,72 @@
 ---
-title: 典型应用场景
+title: Typical Use Cases
 sidebar_position: 3
-description: SkillHub 在企业中的典型应用场景
+description: Typical use cases for SkillHub in enterprise environments
 ---
 
-# 典型应用场景
+# Typical Use Cases
 
-## 企业内部技能共享
+## Internal Enterprise Skill Sharing
 
-**场景描述**：企业内部多个团队开发 AI 技能，需要一个集中的平台进行共享和复用。
+**Scenario**: Multiple teams within an enterprise develop AI skills and need a centralized platform for sharing and reuse.
 
-**解决方案**：
-- 各团队创建自己的命名空间
-- 技能在团队内先审核发布
-- 优秀技能可申请提升到全局空间
-- 所有操作有完整审计记录
+**Solution**:
+- Each team creates its own namespace
+- Skills are reviewed and published within the team first
+- High-quality skills can be promoted to the global namespace
+- All operations are recorded with a complete audit trail
 
-**价值**：
-- 避免重复开发
-- 促进最佳实践传播
-- 保障质量可控
+**Value**:
+- Avoids duplicate development
+- Promotes the spread of best practices
+- Ensures quality control
 
-## AI 技能治理与合规
+## AI Skill Governance and Compliance
 
-**场景描述**：金融、政务等行业对 AI 应用有严格的合规要求，需要完整的审核和审计机制。
+**Scenario**: Industries such as finance and government have strict compliance requirements for AI applications and need a complete review and audit mechanism.
 
-**解决方案**：
-- 双层审核流程（团队审核 + 平台审核）
-- 细粒度 RBAC 权限控制
-- 完整的操作审计日志
-- 技能版本可追溯、可撤回
+**Solution**:
+- Two-tier review workflow (team review + platform review)
+- Fine-grained RBAC permission control
+- Complete operation audit logs
+- Skill versions are traceable and revocable
 
-**价值**：
-- 满足合规要求
-- 风险可控
-- 责任可追溯
+**Value**:
+- Meets compliance requirements
+- Risk is controllable
+- Accountability is traceable
 
-## 多团队协作开发
+## Multi-team Collaborative Development
 
-**场景描述**：大型组织中多个团队协作开发，需要清晰的权限边界和协作机制。
+**Scenario**: In large organizations, multiple teams collaborate on development and need clear permission boundaries and collaboration mechanisms.
 
-**解决方案**：
-- 命名空间隔离，团队自治
-- 命名空间成员角色管理
-- 技能可见性控制（公开/命名空间内/私有）
-- 团队技能可申请提升到全局
+**Solution**:
+- Namespace isolation with team autonomy
+- Namespace member role management
+- Skill visibility control (public / namespace-scoped / private)
+- Team skills can be promoted to the global namespace
 
-**价值**：
-- 权责清晰
-- 协作高效
-- 安全可控
+**Value**:
+- Clear roles and responsibilities
+- Efficient collaboration
+- Secure and controlled
 
-## CLI 工具集成
+## CLI Tool Integration
 
-**场景描述**：已有使用 ClawHub CLI 的工作流，希望无缝迁移到 SkillHub。
+**Scenario**: Existing workflows use the ClawHub CLI, and a seamless migration to SkillHub is desired.
 
-**解决方案**：
-- 提供 ClawHub CLI 协议兼容层
-- 通过 `/.well-known/clawhub.json` 自动发现
-- 现有 CLI 工具无需修改即可使用
-- 同时提供 SkillHub 自有 CLI 增强功能
+**Solution**:
+- Provides a ClawHub CLI protocol compatibility layer
+- Auto-discovery via `/.well-known/clawhub.json`
+- Existing CLI tools can be used without modification
+- Also provides SkillHub's own CLI with enhanced features
 
-**价值**：
-- 保护现有投资
-- 迁移成本低
-- 渐进式升级
+**Value**:
+- Protects existing investments
+- Low migration cost
+- Incremental upgrade path
 
-## 下一步
+## Next Steps
 
-- [单机部署](../administration/deployment/single-machine) - 开始部署
-- [命名空间管理](../administration/governance/namespaces) - 了解组织治理
+- [Single-machine Deployment](../administration/deployment/single-machine) - Get started with deployment
+- [Namespace Management](../administration/governance/namespaces) - Learn about organizational governance

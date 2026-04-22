@@ -1,279 +1,279 @@
-# OSS-01 Core 契约审计与冻结
+# OSS-01 Core Contract Audit and Freeze
 
-## 1. 审计结论
+## 1. Audit Conclusions
 
-SkillHub 开源项目已具备 AstronClaw 主链路所需的绝大部分 Core 能力。现有接口覆盖了 skill 唯一标识查询、版本元数据查询、创建（发布）和删除。**无需在开源 Core 中新增 AstronClaw 专属接口**；对 AstronClaw 而言，查询类和主链路类能力都应统一由 SaaS 层 `AstronClaw Adapter` 封装后对外提供，而不是直接绑定开源 Core 的接口形态。
-
----
-
-## 2. Core 接口清单
-
-以下接口构成 Core 基线能力，供 SaaS 层统一封装后对 AstronClaw 提供；这些接口本身不应被视为 AstronClaw 的长期直接契约。
-
-### 2.1 skill 唯一标识与详情查询
-
-| 接口 | 路径 | 说明 |
-|------|------|------|
-| skill 详情 | `GET /api/v1/skills/{namespace}/{slug}` | 返回 `SkillDetailResponse`，包含完整 identity 和状态 |
-| 版本解析 | `GET /api/v1/skills/{namespace}/{slug}/resolve?version=&tag=&hash=` | 返回 `ResolveVersionResponse`，解析人类可读版本选择器到精确版本 |
-
-### 2.2 指定版本安装元数据查询
-
-| 接口 | 路径 | 说明 |
-|------|------|------|
-| 版本详情 | `GET /api/v1/skills/{namespace}/{slug}/versions/{version}` | 返回 `SkillVersionDetailResponse`，含 metadata 和 manifest |
-| 版本文件列表 | `GET /api/v1/skills/{namespace}/{slug}/versions/{version}/files` | 返回 `List<SkillFileResponse>` |
-| 版本下载 | `GET /api/v1/skills/{namespace}/{slug}/versions/{version}/download` | 下载指定版本 bundle |
-| 版本列表 | `GET /api/v1/skills/{namespace}/{slug}/versions?page=&size=` | 分页返回版本列表 |
-
-### 2.3 创建（发布）个人 skill
-
-| 接口 | 路径 | 说明 |
-|------|------|------|
-| 发布 skill | `POST /api/v1/skills/{namespace}/publish` | 上传包并发布，返回 `PublishResponse` |
-
-### 2.4 删除个人 skill
-
-| 接口 | 路径 | 说明 |
-|------|------|------|
-| 硬删除（by ID） | `DELETE /api/v1/skills/id/{skillId}` | 需 SUPER_ADMIN 权限 |
-| 硬删除（by 坐标） | `DELETE /api/v1/skills/{namespace}/{slug}` | 需 SUPER_ADMIN 权限 |
-| 归档 | `POST /api/v1/skills/{namespace}/{slug}/archive` | owner 或 namespace admin 可操作 |
-| 取消归档 | `POST /api/v1/skills/{namespace}/{slug}/unarchive` | 恢复为 ACTIVE |
-
-### 2.5 版本生命周期
-
-| 接口 | 路径 | 说明 |
-|------|------|------|
-| 删除版本 | `DELETE /api/v1/skills/{namespace}/{slug}/versions/{version}` | 仅 DRAFT/REJECTED/SCAN_FAILED 可删 |
-| 撤回审核 | `POST /api/v1/skills/{namespace}/{slug}/versions/{version}/withdraw-review` | PENDING_REVIEW → DRAFT |
-| 重新发布 | `POST /api/v1/skills/{namespace}/{slug}/versions/{version}/rerelease` | 重新发布版本 |
-
-### 2.6 ClawHub 兼容接口（已有）
-
-| 接口 | 路径 | 说明 |
-|------|------|------|
-| 解析 skill | `GET /api/v1/resolve?slug=&version=` | ClawHub 协议兼容 |
-| 解析 skill（路径） | `GET /api/v1/resolve/{canonicalSlug}?version=` | ClawHub 协议兼容 |
-| 下载 | `GET /api/v1/download/{canonicalSlug}?version=` | 302 重定向到下载地址 |
-| 删除 skill | `DELETE /api/v1/skills/{canonicalSlug}` | owner 可操作 |
-| 取消删除 | `POST /api/v1/skills/{canonicalSlug}/undelete` | owner 可操作 |
-| 发布 skill | `POST /api/v1/skills` | ClawHub 协议兼容 |
-| 发布到 namespace | `POST /api/v1/publish` | ClawHub 协议兼容 |
+The SkillHub open-source project already has the vast majority of Core capabilities required for the AstronClaw main workflow. The existing interfaces cover skill unique identifier queries, version metadata queries, creation (publishing), and deletion. **No new AstronClaw-specific interfaces need to be added to the open-source Core.** For AstronClaw, both query-type and main workflow capabilities should be uniformly provided by the SaaS-layer `AstronClaw Adapter` after wrapping, rather than directly binding to the open-source Core's interface shapes.
 
 ---
 
-## 3. 字段语义冻结表
+## 2. Core Interface Catalog
 
-### 3.1 Skill Identity 字段
+The following interfaces constitute the Core baseline capabilities, to be uniformly wrapped by the SaaS layer before being provided to AstronClaw; these interfaces themselves should not be considered as AstronClaw's long-term direct contracts.
 
-| 字段 | 类型 | 含义 | 稳定性 | 说明 |
+### 2.1 Skill Unique Identifier and Detail Queries
+
+| Interface | Path | Description |
+|------|------|------|
+| Skill details | `GET /api/v1/skills/{namespace}/{slug}` | Returns `SkillDetailResponse`, including complete identity and status |
+| Version resolution | `GET /api/v1/skills/{namespace}/{slug}/resolve?version=&tag=&hash=` | Returns `ResolveVersionResponse`, resolving a human-readable version selector to an exact version |
+
+### 2.2 Specified Version Installation Metadata Queries
+
+| Interface | Path | Description |
+|------|------|------|
+| Version details | `GET /api/v1/skills/{namespace}/{slug}/versions/{version}` | Returns `SkillVersionDetailResponse`, including metadata and manifest |
+| Version file list | `GET /api/v1/skills/{namespace}/{slug}/versions/{version}/files` | Returns `List<SkillFileResponse>` |
+| Version download | `GET /api/v1/skills/{namespace}/{slug}/versions/{version}/download` | Downloads the specified version bundle |
+| Version list | `GET /api/v1/skills/{namespace}/{slug}/versions?page=&size=` | Returns paginated version list |
+
+### 2.3 Create (Publish) Personal Skill
+
+| Interface | Path | Description |
+|------|------|------|
+| Publish skill | `POST /api/v1/skills/{namespace}/publish` | Upload package and publish, returns `PublishResponse` |
+
+### 2.4 Delete Personal Skill
+
+| Interface | Path | Description |
+|------|------|------|
+| Hard delete (by ID) | `DELETE /api/v1/skills/id/{skillId}` | Requires SUPER_ADMIN permission |
+| Hard delete (by coordinates) | `DELETE /api/v1/skills/{namespace}/{slug}` | Requires SUPER_ADMIN permission |
+| Archive | `POST /api/v1/skills/{namespace}/{slug}/archive` | Owner or namespace admin can operate |
+| Unarchive | `POST /api/v1/skills/{namespace}/{slug}/unarchive` | Restores to ACTIVE |
+
+### 2.5 Version Lifecycle
+
+| Interface | Path | Description |
+|------|------|------|
+| Delete version | `DELETE /api/v1/skills/{namespace}/{slug}/versions/{version}` | Only DRAFT/REJECTED/SCAN_FAILED can be deleted |
+| Withdraw from review | `POST /api/v1/skills/{namespace}/{slug}/versions/{version}/withdraw-review` | PENDING_REVIEW → DRAFT |
+| Re-release | `POST /api/v1/skills/{namespace}/{slug}/versions/{version}/rerelease` | Re-publish a version |
+
+### 2.6 ClawHub Compatibility Interfaces (Existing)
+
+| Interface | Path | Description |
+|------|------|------|
+| Resolve skill | `GET /api/v1/resolve?slug=&version=` | ClawHub protocol compatible |
+| Resolve skill (path) | `GET /api/v1/resolve/{canonicalSlug}?version=` | ClawHub protocol compatible |
+| Download | `GET /api/v1/download/{canonicalSlug}?version=` | 302 redirect to download URL |
+| Delete skill | `DELETE /api/v1/skills/{canonicalSlug}` | Owner can operate |
+| Undelete | `POST /api/v1/skills/{canonicalSlug}/undelete` | Owner can operate |
+| Publish skill | `POST /api/v1/skills` | ClawHub protocol compatible |
+| Publish to namespace | `POST /api/v1/publish` | ClawHub protocol compatible |
+
+---
+
+## 3. Field Semantics Freeze Table
+
+### 3.1 Skill Identity Fields
+
+| Field | Type | Meaning | Stability | Notes |
 |------|------|------|--------|------|
-| `skill.id` | Long | skill 全局唯一主键 | 不可变 | 自增，创建后永不改变，可作为外部映射主键 |
-| `namespace` (slug) | String(64) | skill 所属命名空间标识 | 不可变 | 全局唯一，创建后不可改名 |
-| `skill.slug` | String(100) | skill 在 namespace 内的唯一标识 | 不可变 | 创建后不可改名，`namespace + slug` 构成业务坐标 |
-| `skill.displayName` | String(200) | skill 展示名称 | 可变 | 仅用于展示，不可作为映射依据 |
-| `skill.ownerId` | String | skill 创建者 ID | 不可变 | 创建时绑定，不可转移 |
-| `skill.summary` | String(TEXT) | skill 简介 | 可变 | 展示用 |
-| `skill.visibility` | Enum | 可见性 | 可变 | `PUBLIC` / `NAMESPACE_ONLY` / `PRIVATE` |
-| `skill.status` | Enum | skill 状态 | 可变 | `ACTIVE` / `HIDDEN` / `ARCHIVED` |
-| `skill.hidden` | boolean | 是否被管理员隐藏 | 可变 | 与 status 独立的隐藏标记 |
-| `skill.latestVersionId` | Long | 最新版本指针 | 可变 | 指向当前最新已发布版本，yank/删除后自动回退 |
-| `skill.downloadCount` | Long | 下载次数 | 可变 | 累计值 |
-| `skill.starCount` | Integer | 收藏数 | 可变 | 累计值 |
+| `skill.id` | Long | Global unique primary key for skill | Immutable | Auto-increment, never changes after creation, can be used as external mapping primary key |
+| `namespace` (slug) | String(64) | Namespace identifier for the skill | Immutable | Globally unique, cannot be renamed after creation |
+| `skill.slug` | String(100) | Unique identifier for the skill within its namespace | Immutable | Cannot be renamed after creation; `namespace + slug` forms the business coordinates |
+| `skill.displayName` | String(200) | Display name of the skill | Mutable | For display only, cannot be used as a mapping key |
+| `skill.ownerId` | String | Skill creator ID | Immutable | Bound at creation, cannot be transferred |
+| `skill.summary` | String(TEXT) | Skill description | Mutable | For display |
+| `skill.visibility` | Enum | Visibility | Mutable | `PUBLIC` / `NAMESPACE_ONLY` / `PRIVATE` |
+| `skill.status` | Enum | Skill status | Mutable | `ACTIVE` / `HIDDEN` / `ARCHIVED` |
+| `skill.hidden` | boolean | Whether hidden by an admin | Mutable | Hidden flag independent of status |
+| `skill.latestVersionId` | Long | Latest version pointer | Mutable | Points to the current latest published version; automatically rolls back after yank/deletion |
+| `skill.downloadCount` | Long | Download count | Mutable | Cumulative value |
+| `skill.starCount` | Integer | Star count | Mutable | Cumulative value |
 
-### 3.2 SkillVersion 字段
+### 3.2 SkillVersion Fields
 
-| 字段 | 类型 | 含义 | 稳定性 | 说明 |
+| Field | Type | Meaning | Stability | Notes |
 |------|------|------|--------|------|
-| `version.id` | Long | 版本全局唯一主键 | 不可变 | 自增 |
-| `version.skillId` | Long | 所属 skill ID | 不可变 | 外键 |
-| `version.version` | String(64) | 版本号 | 不可变 | 如 `1.0.0`，创建后不可改 |
-| `version.status` | Enum | 版本状态 | 可变 | 见状态语义表 |
-| `version.bundleReady` | boolean | bundle 是否可用 | 可变 | `true` 表示 bundle 已构建完成，可下载安装 |
-| `version.downloadReady` | boolean | 是否允许下载 | 可变 | yank 后设为 `false` |
-| `version.publishedAt` | Instant | 发布时间 | 一次写入 | 首次发布时设置 |
-| `version.parsedMetadataJson` | JSONB | 解析后的元数据 | 一次写入 | 包含 `package_name` 等运行时信息 |
-| `version.manifestJson` | JSONB | manifest 原始内容 | 一次写入 | skill 包的 manifest |
-| `version.changelog` | String(TEXT) | 变更日志 | 可变 | 展示用 |
-| `version.fileCount` | Integer | 文件数量 | 一次写入 | 发布时确定 |
-| `version.totalSize` | Long | 总大小（字节） | 一次写入 | 发布时确定 |
-| `version.yankedAt` | Instant | yank 时间 | 一次写入 | yank 时设置 |
-| `version.yankReason` | String(TEXT) | yank 原因 | 一次写入 | yank 时设置 |
+| `version.id` | Long | Global unique primary key for version | Immutable | Auto-increment |
+| `version.skillId` | Long | Parent skill ID | Immutable | Foreign key |
+| `version.version` | String(64) | Version number | Immutable | e.g., `1.0.0`, cannot be changed after creation |
+| `version.status` | Enum | Version status | Mutable | See status semantics table |
+| `version.bundleReady` | boolean | Whether the bundle is available | Mutable | `true` means the bundle is built and ready to download and install |
+| `version.downloadReady` | boolean | Whether download is allowed | Mutable | Set to `false` after yank |
+| `version.publishedAt` | Instant | Publication time | Write-once | Set when first published |
+| `version.parsedMetadataJson` | JSONB | Parsed metadata | Write-once | Contains runtime information such as `package_name` |
+| `version.manifestJson` | JSONB | Raw manifest content | Write-once | The manifest of the skill package |
+| `version.changelog` | String(TEXT) | Changelog | Mutable | For display |
+| `version.fileCount` | Integer | File count | Write-once | Determined at publish time |
+| `version.totalSize` | Long | Total size (bytes) | Write-once | Determined at publish time |
+| `version.yankedAt` | Instant | Yank time | Write-once | Set when yanked |
+| `version.yankReason` | String(TEXT) | Yank reason | Write-once | Set when yanked |
 
-### 3.3 关键字段含义冻结
+### 3.3 Key Field Semantics Freeze
 
-| 字段 | 冻结定义 |
+| Field | Frozen Definition |
 |------|----------|
-| `skill_id` | `skill.id`，Long 类型自增主键，全局唯一，创建后不可变。AstronClaw 应以此作为 `external_skill_mapping` 的外部主键 |
-| `namespace` | `namespace.slug`，String(64)，全局唯一，不可改名。与 `slug` 组合构成业务坐标 |
-| `slug` | `skill.slug`，String(100)，namespace 内唯一，不可改名。`namespace/slug` 是人类可读的稳定坐标 |
-| `version` | `skill_version.version`，String(64)，同一 skill 内唯一，不可改。如 `1.0.0` |
-| `bundle_url` | 通过 `GET /{namespace}/{slug}/versions/{version}/download` 获取，或通过 `resolve` 接口的 `downloadUrl` 字段获取。不是数据库字段，而是动态生成的下载地址 |
-| `bundle_ready` | `skill_version.bundleReady`，boolean。`true` 表示 bundle 已构建完成可安装。AstronClaw 安装前必须校验此字段 |
-| `package_name` | 存储在 `skill_version.parsedMetadataJson` 中，从 skill 包的 manifest 解析而来。同一 skill 跨版本应保持稳定。AstronClaw 用于运行时安装/卸载标识 |
+| `skill_id` | `skill.id`, Long auto-increment primary key, globally unique, immutable after creation. AstronClaw should use this as the external key for `external_skill_mapping` |
+| `namespace` | `namespace.slug`, String(64), globally unique, cannot be renamed. Combined with `slug` to form business coordinates |
+| `slug` | `skill.slug`, String(100), unique within namespace, cannot be renamed. `namespace/slug` is the human-readable stable coordinate |
+| `version` | `skill_version.version`, String(64), unique within the same skill, immutable. e.g., `1.0.0` |
+| `bundle_url` | Obtained via `GET /{namespace}/{slug}/versions/{version}/download`, or via the `downloadUrl` field of the `resolve` interface. Not a database field; a dynamically generated download URL |
+| `bundle_ready` | `skill_version.bundleReady`, boolean. `true` means the bundle is built and ready to install. AstronClaw must validate this field before installation |
+| `package_name` | Stored in `skill_version.parsedMetadataJson`, parsed from the skill package manifest. Should remain stable across versions of the same skill. Used by AstronClaw for runtime install/uninstall identification |
 
-### 3.4 Namespace 字段
+### 3.4 Namespace Fields
 
-| 字段 | 类型 | 含义 | 稳定性 |
+| Field | Type | Meaning | Stability |
 |------|------|------|--------|
-| `namespace.id` | Long | 命名空间主键 | 不可变 |
-| `namespace.slug` | String(64) | 命名空间标识 | 不可变，全局唯一 |
-| `namespace.displayName` | String(128) | 展示名称 | 可变 |
-| `namespace.type` | Enum | 类型 | 不可变，`GLOBAL` / `TEAM` |
-| `namespace.status` | Enum | 状态 | 可变，`ACTIVE` / `FROZEN` / `ARCHIVED` |
+| `namespace.id` | Long | Namespace primary key | Immutable |
+| `namespace.slug` | String(64) | Namespace identifier | Immutable, globally unique |
+| `namespace.displayName` | String(128) | Display name | Mutable |
+| `namespace.type` | Enum | Type | Immutable, `GLOBAL` / `TEAM` |
+| `namespace.status` | Enum | Status | Mutable, `ACTIVE` / `FROZEN` / `ARCHIVED` |
 
 ---
 
-## 4. 状态语义冻结表
+## 4. Status Semantics Freeze Table
 
-### 4.1 Skill 状态（`SkillStatus`）
+### 4.1 Skill Status (`SkillStatus`)
 
-| 状态 | 市场可见 | 可新装 | 已装是否保留 | 可被 owner 操作 | 说明 |
+| Status | Market Visible | New Install Allowed | Existing Install Retained | Owner Operable | Notes |
 |------|----------|--------|------------|----------------|------|
-| `ACTIVE` | 是（受 visibility 控制） | 是（需有 PUBLISHED 版本） | 是 | 是 | 正常状态 |
-| `HIDDEN` | 否 | 否 | 是 | 受限 | 管理员隐藏，独立于 status 的 `hidden` 标记 |
-| `ARCHIVED` | 否 | 否 | 是 | 可取消归档 | owner 或 namespace admin 归档 |
+| `ACTIVE` | Yes (controlled by visibility) | Yes (requires a PUBLISHED version) | Yes | Yes | Normal state |
+| `HIDDEN` | No | No | Yes | Restricted | Hidden by admin; independent `hidden` flag from status |
+| `ARCHIVED` | No | No | Yes | Can unarchive | Archived by owner or namespace admin |
 
-### 4.2 版本状态（`SkillVersionStatus`）
+### 4.2 Version Status (`SkillVersionStatus`)
 
-| 状态 | 是否允许安装 | 是否允许下载 | 市场可见 | 可转换到 | 说明 |
+| Status | Install Allowed | Download Allowed | Market Visible | Can Transition To | Notes |
 |------|------------|------------|---------|---------|------|
-| `DRAFT` | 否 | 否 | 否 | SCANNING, 可删除 | 初始状态，编辑中 |
-| `SCANNING` | 否 | 否 | 否 | SCAN_FAILED, PENDING_REVIEW, PUBLISHED | 安全扫描中 |
-| `SCAN_FAILED` | 否 | 否 | 否 | 可删除 | 安全扫描失败 |
-| `PENDING_REVIEW` | 否 | 否 | 否 | PUBLISHED, REJECTED, → DRAFT(撤回) | 等待审核 |
-| `PUBLISHED` | 是 | 是 | 是 | YANKED | 已发布，可安装 |
-| `REJECTED` | 否 | 否 | 否 | 可删除 | 审核拒绝 |
-| `YANKED` | 否 | 否 | 否（或弱可见） | 不可逆 | 已撤回，已装不受影响 |
+| `DRAFT` | No | No | No | SCANNING, can delete | Initial state, being edited |
+| `SCANNING` | No | No | No | SCAN_FAILED, PENDING_REVIEW, PUBLISHED | Security scan in progress |
+| `SCAN_FAILED` | No | No | No | Can delete | Security scan failed |
+| `PENDING_REVIEW` | No | No | No | PUBLISHED, REJECTED, → DRAFT (withdraw) | Awaiting review |
+| `PUBLISHED` | Yes | Yes | Yes | YANKED | Published, installable |
+| `REJECTED` | No | No | No | Can delete | Review rejected |
+| `YANKED` | No | No | No (or weakly visible) | Irreversible | Yanked; existing installs unaffected |
 
-### 4.3 可见性（`SkillVisibility`）
+### 4.3 Visibility (`SkillVisibility`)
 
-| 可见性 | 市场列表可见 | 谁可查看 | 谁可安装 |
+| Visibility | Market List Visible | Who Can View | Who Can Install |
 |--------|------------|---------|---------|
-| `PUBLIC` | 是 | 所有人 | 所有人（需 PUBLISHED + bundleReady） |
-| `NAMESPACE_ONLY` | 否 | namespace 成员 | namespace 成员 |
-| `PRIVATE` | 否 | 仅 owner | 仅 owner |
+| `PUBLIC` | Yes | Everyone | Everyone (requires PUBLISHED + bundleReady) |
+| `NAMESPACE_ONLY` | No | Namespace members | Namespace members |
+| `PRIVATE` | No | Owner only | Owner only |
 
-### 4.4 删除语义
+### 4.4 Deletion Semantics
 
-| 操作 | 类型 | 可逆 | 数据影响 | 已装实例影响 |
+| Operation | Type | Reversible | Data Impact | Existing Install Impact |
 |------|------|------|---------|------------|
-| 硬删除 skill | 永久删除 | 否 | 删除所有记录、文件、存储对象，slug 可复用 | 不影响，AstronClaw 已装快照独立 |
-| 归档 skill | 状态变更 | 是 | 无数据删除，status → ARCHIVED | 不影响 |
-| 隐藏 skill | 标记变更 | 是 | 无数据删除，hidden → true | 不影响 |
-| 删除版本 | 永久删除 | 否 | 仅删除 DRAFT/REJECTED/SCAN_FAILED 版本 | 不影响（这些版本未被安装） |
-| Yank 版本 | 状态变更 | 否 | status → YANKED，downloadReady → false | 不影响已装实例 |
+| Hard delete skill | Permanent deletion | No | Deletes all records, files, and storage objects; slug can be reused | No impact; AstronClaw installed snapshots are independent |
+| Archive skill | Status change | Yes | No data deleted; status → ARCHIVED | No impact |
+| Hide skill | Flag change | Yes | No data deleted; hidden → true | No impact |
+| Delete version | Permanent deletion | No | Only deletes DRAFT/REJECTED/SCAN_FAILED versions | No impact (these versions were never installed) |
+| Yank version | Status change | No | status → YANKED, downloadReady → false | No impact on existing installs |
 
-### 4.5 AstronClaw 安装判断规则
+### 4.5 AstronClaw Installation Check Rules
 
-AstronClaw 判断一个 skill 版本是否可安装，需同时满足：
+For AstronClaw to determine whether a skill version is installable, all of the following must be satisfied:
 
 ```
 skill.status == ACTIVE
   AND skill.hidden == false
-  AND skill.visibility 允许当前用户访问
+  AND skill.visibility allows access by the current user
   AND version.status == PUBLISHED
   AND version.bundleReady == true
 ```
 
-已安装实例不受后续状态变更影响。即使 skill 被删除/归档/隐藏，或版本被 yank，AstronClaw 本地安装快照仍可正常使用和卸载。
+Existing installs are not affected by subsequent status changes. Even if a skill is deleted/archived/hidden, or a version is yanked, the AstronClaw local installation snapshot can still be used and uninstalled normally.
 
-## 5. 错误语义表
+## 5. Error Semantics Table
 
-### 5.1 统一响应结构
+### 5.1 Unified Response Structure
 
 ```json
 {
   "code": 0,
-  "msg": "操作成功",
+  "msg": "Operation successful",
   "data": { ... },
   "timestamp": "2026-04-10T08:00:00Z",
   "requestId": "req-xxx"
 }
 ```
 
-- `code = 0` 表示成功
-- `code > 0` 表示错误，值为 HTTP 状态码
+- `code = 0` means success
+- `code > 0` means an error; value is the HTTP status code
 
-### 5.2 错误码映射
+### 5.2 Error Code Mapping
 
-| HTTP 状态码 | 场景 | 异常类型 | 说明 |
+| HTTP Status | Scenario | Exception Type | Description |
 |------------|------|---------|------|
-| 400 | 参数非法 | `BadRequestException` / `DomainBadRequestException` | 请求参数校验失败 |
-| 401 | 未认证 | `UnauthorizedException` / `AuthFlowException` | 未登录或 token 过期 |
-| 403 | 无权限 | `ForbiddenException` / `DomainForbiddenException` | 无操作权限 |
-| 404 | 未找到 | `DomainNotFoundException` | skill/version/namespace 不存在 |
-| 408 | 请求超时 | `AsyncRequestTimeoutException` | 异步请求超时 |
-| 503 | 存储不可用 | `StorageAccessException` | 对象存储访问失败 |
-| 500 | 服务异常 | `Exception` | 未预期的内部错误 |
+| 400 | Invalid parameters | `BadRequestException` / `DomainBadRequestException` | Request parameter validation failure |
+| 401 | Unauthenticated | `UnauthorizedException` / `AuthFlowException` | Not logged in or token expired |
+| 403 | No permission | `ForbiddenException` / `DomainForbiddenException` | No operation permission |
+| 404 | Not found | `DomainNotFoundException` | Skill/version/namespace does not exist |
+| 408 | Request timeout | `AsyncRequestTimeoutException` | Async request timeout |
+| 503 | Storage unavailable | `StorageAccessException` | Object storage access failure |
+| 500 | Service error | `Exception` | Unexpected internal error |
 
-### 5.3 Core 主链路关键错误场景
+### 5.3 Core Main Workflow Critical Error Scenarios
 
-| 场景 | HTTP 状态码 | msg 示例 | AstronClaw 处理建议 |
+| Scenario | HTTP Status | Example msg | AstronClaw Handling Recommendation |
 |------|-----------|---------|-------------------|
-| skill 不存在 | 404 | `error.skill.notFound` | 映射失败，提示用户 |
-| 版本不存在 | 404 | `error.skill.notFound` | 安装/升级失败，提示用户 |
-| 版本不可安装（非 PUBLISHED） | 400 | `error.badRequest` | 拒绝安装，提示版本状态 |
-| bundle 未就绪 | 400 | `error.badRequest` | 拒绝安装，提示稍后重试 |
-| 无权访问（PRIVATE skill） | 403 | `error.forbidden` | 提示无权限 |
-| namespace 不存在 | 404 | `error.namespace.notFound` | 映射失败 |
-| 存储服务不可用 | 503 | `error.storage.unavailable` | 降级处理，已装 skill 不受影响 |
-| 删除不允许（非 owner） | 403 | `error.forbidden` | 提示无权限 |
+| Skill does not exist | 404 | `error.skill.notFound` | Mapping failure, prompt user |
+| Version does not exist | 404 | `error.skill.notFound` | Install/upgrade failure, prompt user |
+| Version not installable (non-PUBLISHED) | 400 | `error.badRequest` | Reject install, indicate version status |
+| Bundle not ready | 400 | `error.badRequest` | Reject install, suggest retrying later |
+| No access permission (PRIVATE skill) | 403 | `error.forbidden` | Indicate no permission |
+| Namespace does not exist | 404 | `error.namespace.notFound` | Mapping failure |
+| Storage service unavailable | 503 | `error.storage.unavailable` | Graceful degradation; existing installs unaffected |
+| Deletion not allowed (non-owner) | 403 | `error.forbidden` | Indicate no permission |
 
 ---
 
-## 6. Core vs SaaS Adapter 能力分界
+## 6. Core vs SaaS Adapter Capability Boundary
 
-### 6.1 Core 已满足的能力
+### 6.1 Capabilities Already Satisfied by Core
 
-说明：
+Note:
 
-下表表示“开源 Core 已具备、可供 SaaS 封装”的能力，并不表示 AstronClaw 应直接调用这些开源接口。
+The table below indicates capabilities that "the open-source Core already has and can be wrapped by SaaS", and does not imply that AstronClaw should directly call these open-source interfaces.
 
-| PRD 需求 | Core 接口 | 满足程度 | 备注 |
+| PRD Requirement | Core Interface | Satisfied | Notes |
 |---------|----------|---------|------|
-| skill 唯一标识查询 | `GET /{namespace}/{slug}` | 完全满足 | 返回 `id`、`namespace`、`slug` |
-| 指定版本安装元数据 | `GET /{namespace}/{slug}/versions/{version}` | 基本满足 | 返回 status、metadata；`package_name` 在 `parsedMetadataJson` 中 |
-| 版本解析 | `GET /{namespace}/{slug}/resolve` | 完全满足 | 支持 version/tag/hash 解析 |
-| bundle 下载 | `GET /{namespace}/{slug}/versions/{version}/download` | 完全满足 | 直接下载 |
-| 创建（发布）个人 skill | `POST /{namespace}/publish` | 完全满足 | 返回 skillId、namespace、slug、version、status |
-| 删除个人 skill | `DELETE /{namespace}/{slug}` (ClawHub 兼容) | 完全满足 | owner 可操作 |
-| 归档 skill | `POST /{namespace}/{slug}/archive` | 完全满足 | 可逆操作 |
-| 版本状态查询 | `GET /{namespace}/{slug}` 中的 headlineVersion/publishedVersion | 完全满足 | 包含版本状态 |
-| labels 数据 | `GET /{namespace}/{slug}` 中的 labels 字段 | 完全满足 | 返回 `List<SkillLabelDto>` |
+| Skill unique identifier query | `GET /{namespace}/{slug}` | Fully satisfied | Returns `id`, `namespace`, `slug` |
+| Specified version installation metadata | `GET /{namespace}/{slug}/versions/{version}` | Mostly satisfied | Returns status, metadata; `package_name` is in `parsedMetadataJson` |
+| Version resolution | `GET /{namespace}/{slug}/resolve` | Fully satisfied | Supports version/tag/hash resolution |
+| Bundle download | `GET /{namespace}/{slug}/versions/{version}/download` | Fully satisfied | Direct download |
+| Create (publish) personal skill | `POST /{namespace}/publish` | Fully satisfied | Returns skillId, namespace, slug, version, status |
+| Delete personal skill | `DELETE /{namespace}/{slug}` (ClawHub compatible) | Fully satisfied | Owner can operate |
+| Archive skill | `POST /{namespace}/{slug}/archive` | Fully satisfied | Reversible operation |
+| Version status query | `headlineVersion/publishedVersion` in `GET /{namespace}/{slug}` | Fully satisfied | Includes version status |
+| Labels data | `labels` field in `GET /{namespace}/{slug}` | Fully satisfied | Returns `List<SkillLabelDto>` |
 
-### 6.2 需要 SaaS Adapter 新增的能力
+### 6.2 Capabilities Requiring New SaaS Adapter
 
-| PRD 需求 | 原因 | Adapter 建议 |
+| PRD Requirement | Reason | Adapter Recommendation |
 |---------|------|-------------|
-| 市场列表查询（搜索/过滤/排序） | Core 不提供面向页面的聚合列表 | `GET /api/v1/astronclaw/adapter/skills/market` |
-| 市场详情（AstronClaw DTO） | Core 返回的 DTO 包含 Core 内部字段，需适配 | `GET /api/v1/astronclaw/adapter/skills/{id}` |
-| owner 维度"我创建的"查询 | Core 的 `/me/skills` 返回 Core DTO，需适配 | `GET /api/v1/astronclaw/adapter/skills/mine` |
-| `is_installed` 补全 | 安装关系在 AstronClaw 侧 | AstronClaw 本地补全，不在 Adapter |
-| `package_name` 顶层字段 | 当前在 `parsedMetadataJson` 内，需提取 | Adapter 解析 JSON 后平铺返回 |
-| `bundle_url` 直接返回 | 当前需通过 download 接口获取 | Adapter 可直接返回预签名 URL |
-| 统一 `can_install` 判断 | 需组合 status + visibility + bundleReady | Adapter 计算后返回布尔值 |
-| 统一 `can_delete` 判断 | 需组合 owner + status | Adapter 计算后返回布尔值 |
+| Market list query (search/filter/sort) | Core does not provide page-oriented aggregated lists | `GET /api/v1/astronclaw/adapter/skills/market` |
+| Market details (AstronClaw DTO) | Core's returned DTO includes Core-internal fields that need adaptation | `GET /api/v1/astronclaw/adapter/skills/{id}` |
+| Owner-dimension "created by me" query | Core's `/me/skills` returns Core DTOs that need adaptation | `GET /api/v1/astronclaw/adapter/skills/mine` |
+| `is_installed` population | Installation relationship is on the AstronClaw side | AstronClaw populates locally, not in Adapter |
+| `package_name` as top-level field | Currently nested in `parsedMetadataJson`, needs extraction | Adapter parses JSON and returns it as a flat field |
+| `bundle_url` returned directly | Currently requires fetching via the download interface | Adapter can return a pre-signed URL directly |
+| Unified `can_install` determination | Requires combining status + visibility + bundleReady | Adapter computes and returns a boolean |
+| Unified `can_delete` determination | Requires combining owner + status | Adapter computes and returns a boolean |
 
-### 6.3 分界原则
+### 6.3 Boundary Principles
 
 ```
-Core 负责：skill 生命周期真相（identity、version、status、artifact）
-Adapter 负责：面向 AstronClaw 的 DTO 适配（字段平铺、状态聚合、权限预判断）
+Core is responsible for: skill lifecycle source of truth (identity, version, status, artifact)
+Adapter is responsible for: DTO adaptation for AstronClaw (field flattening, status aggregation, pre-computed permissions)
 ```
 
-补充原则：
+Supplementary principles:
 
-1. 即使开源 `Core` 已经具备某项主链路能力，`AstronClaw` 仍应统一通过 SaaS Adapter 消费。
-2. 该原则同时适用于唯一标识查询、版本元数据、创建个人 skill、删除个人 skill。
-3. 开源文档中的接口清单用于说明 `Core` 能力边界，不应被解读为 AstronClaw 的直接对接建议。
+1. Even when the open-source `Core` already has a main workflow capability, `AstronClaw` should still consume it uniformly through the SaaS Adapter.
+2. This principle applies equally to unique identifier queries, version metadata, creating personal skills, and deleting personal skills.
+3. The interface catalog in the open-source documentation is for explaining `Core` capability boundaries, and should not be interpreted as a direct integration recommendation for AstronClaw.
 
 ---
 
-## 7. 成功 / 失败 / 边界样例
+## 7. Success / Failure / Edge Case Examples
 
-### 7.1 查询 skill identity — 成功
+### 7.1 Query Skill Identity — Success
 
 ```
 GET /api/v1/skills/my-namespace/my-skill
@@ -297,9 +297,9 @@ GET /api/v1/skills/my-namespace/my-skill
 }
 ```
 
-AstronClaw 映射关键字段：`id=42`，`namespace=my-namespace`，`slug=my-skill`。
+AstronClaw maps key fields: `id=42`, `namespace=my-namespace`, `slug=my-skill`.
 
-### 7.2 查询 skill identity — 不存在
+### 7.2 Query Skill Identity — Not Found
 
 ```
 GET /api/v1/skills/my-namespace/nonexistent
@@ -313,7 +313,7 @@ GET /api/v1/skills/my-namespace/nonexistent
 }
 ```
 
-### 7.3 查询指定版本元数据 — 成功
+### 7.3 Query Specified Version Metadata — Success
 
 ```
 GET /api/v1/skills/my-namespace/my-skill/versions/1.2.0
@@ -336,9 +336,9 @@ GET /api/v1/skills/my-namespace/my-skill/versions/1.2.0
 }
 ```
 
-`package_name` 从 `parsedMetadataJson` 中提取。
+`package_name` is extracted from `parsedMetadataJson`.
 
-### 7.4 查询已 YANKED 版本
+### 7.4 Query a YANKED Version
 
 ```
 GET /api/v1/skills/my-namespace/my-skill/versions/1.0.0
@@ -356,9 +356,9 @@ GET /api/v1/skills/my-namespace/my-skill/versions/1.0.0
 }
 ```
 
-AstronClaw 判断 `status != PUBLISHED`，拒绝新安装。已装实例不受影响。
+AstronClaw determines `status != PUBLISHED` and rejects new installations. Existing installs are unaffected.
 
-### 7.5 发布（创建）个人 skill — 成功
+### 7.5 Publish (Create) Personal Skill — Success
 
 ```
 POST /api/v1/skills/my-namespace/publish
@@ -382,7 +382,7 @@ visibility: PRIVATE
 }
 ```
 
-### 7.6 删除个人 skill — 成功
+### 7.6 Delete Personal Skill — Success
 
 ```
 DELETE /api/v1/skills/my-namespace/my-skill
@@ -397,7 +397,7 @@ DELETE /api/v1/skills/my-namespace/my-skill
 }
 ```
 
-### 7.7 删除个人 skill — 无权限
+### 7.7 Delete Personal Skill — No Permission
 
 ```
 DELETE /api/v1/skills/other-namespace/other-skill
@@ -411,7 +411,7 @@ DELETE /api/v1/skills/other-namespace/other-skill
 }
 ```
 
-### 7.8 边界：skill 已归档后查询
+### 7.8 Edge Case: Querying an Archived Skill
 
 ```
 GET /api/v1/skills/my-namespace/archived-skill
@@ -429,32 +429,32 @@ GET /api/v1/skills/my-namespace/archived-skill
 }
 ```
 
-skill 仍可查询，但 AstronClaw 应根据 `status=ARCHIVED` 判断不可新装。
+The skill is still queryable, but AstronClaw should determine from `status=ARCHIVED` that new installations are not allowed.
 
 ---
 
-## 8. 遗留问题与建议
+## 8. Outstanding Issues and Recommendations
 
-### 8.1 `package_name` 提取
+### 8.1 `package_name` Extraction
 
-当前 `package_name` 嵌套在 `parsedMetadataJson` JSONB 字段中，不是顶层字段。
+`package_name` is currently nested in the `parsedMetadataJson` JSONB field and is not a top-level field.
 
-建议：SaaS Adapter 在返回 AstronClaw DTO 时，解析 JSON 并将 `package_name` 提取为顶层字段。Core 不需要改动。
+Recommendation: When the SaaS Adapter returns AstronClaw DTOs, parse the JSON and extract `package_name` as a top-level field. No changes are needed to Core.
 
-### 8.2 `bundle_url` 获取方式
+### 8.2 `bundle_url` Access Method
 
-当前没有直接返回 `bundle_url` 的字段，需通过 download 接口获取。`ResolveVersionResponse` 中有 `downloadUrl` 字段。
+There is currently no field that directly returns `bundle_url`; it must be obtained via the download interface. The `ResolveVersionResponse` has a `downloadUrl` field.
 
-建议：SaaS Adapter 可通过 `resolve` 接口获取 `downloadUrl`，或直接生成预签名 URL 返回给 AstronClaw。
+Recommendation: The SaaS Adapter can obtain `downloadUrl` through the `resolve` interface, or generate a pre-signed URL directly to return to AstronClaw.
 
-### 8.3 删除接口权限
+### 8.3 Delete Interface Permissions
 
-当前 `DELETE /api/v1/skills/{namespace}/{slug}`（portal 路径）需要 SUPER_ADMIN 权限。ClawHub 兼容接口 `DELETE /api/v1/skills/{canonicalSlug}` 允许 owner 操作。
+The current `DELETE /api/v1/skills/{namespace}/{slug}` (portal path) requires SUPER_ADMIN permission. The ClawHub-compatible interface `DELETE /api/v1/skills/{canonicalSlug}` allows owner operation.
 
-建议：SaaS Adapter 应统一封装 owner 可操作的删除接口，对 AstronClaw 暴露稳定契约；AstronClaw 不直接依赖开源删除接口路径。
+Recommendation: The SaaS Adapter should uniformly wrap an owner-operable delete interface to expose a stable contract to AstronClaw; AstronClaw should not directly depend on the open-source delete interface paths.
 
-### 8.4 `hidden` 与 `status` 的关系
+### 8.4 Relationship Between `hidden` and `status`
 
-当前 `hidden` 是独立于 `status` 的布尔标记（管理员操作），而 `HIDDEN` 是 `SkillStatus` 枚举值之一但实际代码中 skill 的 status 枚举包含 `ACTIVE`、`HIDDEN`、`ARCHIVED`。
+Currently `hidden` is a boolean flag independent of `status` (an admin operation), while `HIDDEN` is one of the `SkillStatus` enum values — but in practice the skill's status enum contains `ACTIVE`, `HIDDEN`, and `ARCHIVED`.
 
-建议：SaaS Adapter 统一为 AstronClaw 提供一个 `is_visible` 聚合字段，屏蔽内部 hidden 标记与 status 的复杂关系。
+Recommendation: The SaaS Adapter should provide AstronClaw with a unified `is_visible` aggregated field that shields the complex relationship between the internal `hidden` flag and `status`.

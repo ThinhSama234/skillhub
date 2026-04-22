@@ -1,104 +1,104 @@
-# 审核与治理
+# Review and Governance
 
-## 功能描述
+## Feature Description
 
-SkillHub 提供了完整的审核工作流，确保发布到注册中心的技能包符合团队规范。
+SkillHub provides a complete review workflow to ensure that skill packages published to the registry comply with team standards.
 
-审核机制分为两层：
-- **命名空间审核**：团队管理员审核本命名空间的技能包
-- **平台审核**：平台管理员审核推广到全局的技能包
+The review mechanism has two levels:
+- **Namespace review**: Team admins review skill packages within their namespace
+- **Platform review**: Platform admins review skill packages promoted to the global level
 
-![概念图](/diagrams/review-concept.png)
+![Concept diagram](/diagrams/review-concept.png)
 
-**审核流程**：
+**Review workflow**:
 
-1. 开发者发布技能包 → 进入「待审核」状态
-2. 管理员收到通知 → 查看技能包详情
-3. 管理员决策 → 批准或拒绝
-4. 批准后 → 技能包正式发布
-5. 拒绝后 → 开发者收到反馈，可修改后重新提交
+1. Developer publishes a skill package → enters "Pending Review" status
+2. Admin receives a notification → views skill package details
+3. Admin makes a decision → approve or reject
+4. After approval → the skill package is officially published
+5. After rejection → the developer receives feedback and can revise and resubmit
 
-**审核状态**：
+**Review statuses**:
 
-| 状态 | 说明 |
+| Status | Description |
 |------|------|
-| **PENDING** | 待审核 |
-| **APPROVED** | 已批准 |
-| **REJECTED** | 已拒绝 |
-| **WITHDRAWN** | 已撤回 |
+| **PENDING** | Awaiting review |
+| **APPROVED** | Approved |
+| **REJECTED** | Rejected |
+| **WITHDRAWN** | Withdrawn |
 
-**治理功能**：
+**Governance features**:
 
-- **审核工作流**：多级审核、批量审核
-- **举报系统**：用户可以举报不当技能包
-- **推广管理**：将命名空间技能包推���到全局
-- **审计日志**：记录所有治理操作
+- **Review workflow**: Multi-level review, batch review
+- **Report system**: Users can report inappropriate skill packages
+- **Promotion management**: Promote namespace skill packages to the global level
+- **Audit log**: Records all governance operations
 
-## 使用场景
+## Use Cases
 
-**场景一：命名空间管理员审核**
+**Scenario 1: Namespace admin reviews submissions**
 
-团队管理员审核成员提交的技能包，确保符合团队规范。
+A team admin reviews skill packages submitted by members to ensure they meet team standards.
 
-![操作截图](/screenshots/review-list.png)
+![Screenshot](/screenshots/review-list.png)
 
-**场景二：平台管理员审核推广**
+**Scenario 2: Platform admin reviews promotions**
 
-平台管理员审核从命名空间推广到全局的技能包。
+A platform admin reviews skill packages being promoted from a namespace to the global level.
 
-**场景三：举报处理**
+**Scenario 3: Handling reports**
 
-用户举报不当技能包，管理员调查并处理。
+A user reports an inappropriate skill package; an admin investigates and takes action.
 
-**场景四：批量审核**
+**Scenario 4: Batch review**
 
-管理员批量批准多个符合规范的技能包。
+An admin approves multiple compliant skill packages at once.
 
-## 使用步骤
+## Usage Steps
 
-**提交审核**：
+**Submit for review**:
 
-1. 发布技能包时，系统自动创建审核任务
-2. 开发者可以在「我的提交」中查看审核状态
-3. 等待管理���审核
+1. When a skill package is published, the system automatically creates a review task
+2. The developer can check the review status in "My Submissions"
+3. Wait for the admin to complete the review
 
-**审核技能包**：
+**Review a skill package**:
 
-1. 访问 `/dashboard/reviews`
-2. 查看待审核列表
-3. 点击技能包查看详情：
-   - 查看元数据（名称、描述、版本）
-   - 浏览文件列表
-   - 在线查看文件内容
-   - 下载完整包进行本地测试
+1. Go to `/dashboard/reviews`
+2. View the pending review list
+3. Click a skill package to view details:
+   - View metadata (name, description, version)
+   - Browse the file list
+   - View file content online
+   - Download the full package for local testing
 
-![流程图](/diagrams/review-flow.png)
+![Flow diagram](/diagrams/review-flow.png)
 
-4. 做出决策：
-   - **批准**：技能包正式发布，开发者收到通知
-   - **拒绝**：填写拒绝原因，开发者可修改后重新提交
+4. Make a decision:
+   - **Approve**: The skill package is officially published; the developer receives a notification
+   - **Reject**: Provide a rejection reason; the developer can revise and resubmit
 
-5. 添加审核意见（可选）
+5. Add review comments (optional)
 
-**撤回审核**：
+**Withdraw a review**:
 
-开发者发现问题，可以在审核通过前撤回提交：
+If a developer discovers an issue, they can withdraw a submission before it is approved:
 
-1. 访问「我的提交」
-2. 找到待审核的技能包
-3. 点击「撤回」
-4. 确认撤回
+1. Go to "My Submissions"
+2. Find the pending skill package
+3. Click "Withdraw"
+4. Confirm the withdrawal
 
-**处理举报**：
+**Handle reports**:
 
-1. 访问 `/dashboard/reports`
-2. 查看举报列表
-3. 调查举报内容
-4. 采取行动（归档技能包、警告用户等）
+1. Go to `/dashboard/reports`
+2. View the report list
+3. Investigate the reported content
+4. Take action (archive the skill package, warn the user, etc.)
 
-## API 接口
+## API Reference
 
-**提交审核**：
+**Submit for review**:
 ```bash
 POST /api/v1/reviews
 Content-Type: application/json
@@ -108,7 +108,7 @@ Content-Type: application/json
 }
 ```
 
-**批准审核**：
+**Approve a review**:
 ```bash
 POST /api/v1/reviews/{id}/approve
 Content-Type: application/json
@@ -118,7 +118,7 @@ Content-Type: application/json
 }
 ```
 
-**拒绝审核**：
+**Reject a review**:
 ```bash
 POST /api/v1/reviews/{id}/reject
 Content-Type: application/json
@@ -128,43 +128,43 @@ Content-Type: application/json
 }
 ```
 
-**参数说明**：
-| 参数 | 类型 | 说明 |
+**Parameter description**:
+| Parameter | Type | Description |
 |------|------|------|
-| id | string | 审核任务 ID（路径参数） |
-| comment | string | 审核意见（可选，最多 1000 字符） |
+| id | string | Review task ID (path parameter) |
+| comment | string | Review comment (optional, up to 1000 characters) |
 
-**列出待审核任务**：
+**List pending review tasks**:
 ```bash
 GET /api/v1/reviews/pending?namespaceId=ns-123&page=0&size=20
 ```
 
-**列出我的提交**：
+**List my submissions**:
 ```bash
 GET /api/v1/reviews/my-submissions?page=0&size=20
 ```
 
-**获取审核详情**：
+**Get review detail**:
 ```bash
 GET /api/v1/reviews/{id}
 ```
 
-**获取审核中的技能包详情**：
+**Get skill detail under review**:
 ```bash
 GET /api/v1/reviews/{id}/skill-detail
 ```
 
-**下载审核包**：
+**Download review package**:
 ```bash
 GET /api/v1/reviews/{id}/download
 ```
 
-**撤回审核**：
+**Withdraw a review**:
 ```bash
 POST /api/v1/reviews/{id}/withdraw
 ```
 
-**举报技能包**：
+**Report a skill package**:
 ```bash
 POST /api/v1/skills/{namespace}/{slug}/reports
 Content-Type: application/json
@@ -175,12 +175,12 @@ Content-Type: application/json
 }
 ```
 
-## 注意事项
+## Notes
 
-> **审核权限**：只有命名空间的 Admin 和 Owner 可以审核本命名空间的技能包。平台管理员可以审核所有技能包。
+> **Review permissions**: Only Admins and Owners of a namespace can review skill packages within that namespace. Platform admins can review all skill packages.
 
-- **审核时效**：建议在 24 小时内完成审核，避免阻塞开发者
-- **审核记录**：所有审核操作都会记录到审计日志
-- **批量审核**：管理员可以批量批准多个技能包
-- **审核意见**：拒绝时建议提供详细的改进建议
-- **撤回限制**：只有待审核状态的技能包可以撤回
+- **Review timeliness**: Reviews should ideally be completed within 24 hours to avoid blocking developers
+- **Review records**: All review operations are recorded in the audit log
+- **Batch review**: Admins can approve multiple skill packages at once
+- **Review comments**: Detailed improvement suggestions are recommended when rejecting
+- **Withdrawal restriction**: Only skill packages in the pending review status can be withdrawn

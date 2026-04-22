@@ -1,144 +1,144 @@
-# skillhub 核心业务流
+# skillhub Core Business Flows
 
-## 1 发布流程
+## 1 Publish Flow
 
-一期采用同步发布模型：上传、校验、存储、持久化在一次请求中同步完成。前端通过异步上传（带进度条）提升用户体验，但后端处理是同步的。
+Phase 1 uses a synchronous publish model: upload, validation, storage, and persistence all complete synchronously within a single request. The frontend enhances the user experience with asynchronous upload (with a progress bar), but the backend processing is synchronous.
 
-> **设计决策**：一期暂不考虑异步发布（uploadId、publishId、状态轮询、异步转正等）。一期技能包为文本资源包，体积有限（上限 10MB），同步处理足以满足需求。如后续引入大文件或复杂校验流程，再考虑异步模型。
+> **Design Decision**: Asynchronous publishing (uploadId, publishId, status polling, async finalization, etc.) is not considered for Phase 1. Phase 1 skill packages are text resource packages with a limited size (10 MB upper limit); synchronous processing is sufficient. If large files or complex validation flows are introduced later, an asynchronous model will be considered then.
 
-### 1.1 当前发布流程基线
+### 1.1 Current Publish Flow Baseline
 
 ```
-用户提交发布
+User submits for publish
     │
     ▼
-① 身份与权限校验（用户是否为该 namespace 的 MEMBER 以上）
+① Identity and permission check (whether the user is at least a MEMBER of the target namespace)
     │
     ▼
-② 技能包校验
-   - SKILL.md 存在性、frontmatter 格式
-   - 文件类型白名单、单文件大小限制、总包大小限制
-   - 版本号 semver 合法性、不与已有版本冲突
-   - [扩展点] PrePublishValidator 链（一期空实现）
+② Skill package validation
+   - SKILL.md presence, frontmatter format
+   - File type allowlist, single-file size limit, total package size limit
+   - Version number semver validity, no conflict with existing versions
+   - [Extension point] PrePublishValidator chain (no-op implementation in Phase 1)
     │
     ▼
-③ 同步写入对象存储
-   - 文件逐个上传到正式路径 `skills/{skillId}/{versionId}/{filePath}`，记录 SHA-256
-   - 生成预打包 zip 到 `packages/{skillId}/{versionId}/bundle.zip`
+③ Synchronous write to object storage
+   - Files uploaded one by one to the official path `skills/{skillId}/{versionId}/{filePath}`, with SHA-256 recorded
+   - Pre-packaged zip generated at `packages/{skillId}/{versionId}/bundle.zip`
     │
     ▼
-④ 持久化数据
-   - 创建或关联 skill 记录（首次发布时创建 skill）
-   - 创建 skill_version（普通用户进入 `PENDING_REVIEW`，`SUPER_ADMIN` 直达 `PUBLISHED`）
-   - 创建 skill_file 记录
-   - 解析 SKILL.md frontmatter → parsed_metadata_json
-   - 生成 manifest_json
-   - 直发场景更新 skill.latest_version_id
+④ Persist data
+   - Create or associate skill record (skill is created on the first publish)
+   - Create skill_version (ordinary users enter `PENDING_REVIEW`; `SUPER_ADMIN` goes directly to `PUBLISHED`)
+   - Create skill_file records
+   - Parse SKILL.md frontmatter → parsed_metadata_json
+   - Generate manifest_json
+   - Update skill.latest_version_id for direct-publish scenarios
     │
     ▼
-⑤ 同步写入审计日志
+⑤ Synchronously write audit log
     │
     ▼
-⑥ 异步触发搜索索引写入
+⑥ Asynchronously trigger search index write
 ```
 
-当前版本采用审核流，不再区分“Phase 2 直发”与“Phase 3 恢复审核”两套现实实现：
+The current version uses a review flow; there is no longer a distinction between a "Phase 2 direct-publish" and "Phase 3 re-enabled review" as two separate real implementations:
 
-- 普通用户发布请求创建 `skill_version(status=PENDING_REVIEW)`
-- 同步创建 `review_task(status=PENDING)`
-- 审核通过后转为 `PUBLISHED`
-- 审核拒绝后转为 `REJECTED`
-- 撤回审核时删除 `PENDING review_task`，并将 `skill_version` 回退到 `DRAFT`
-- 例外：提交人持有 `SUPER_ADMIN` 平台角色时，发布入口直接创建 `skill_version(status=PUBLISHED)`，跳过 `review_task` 创建，同时不再要求其必须是目标 namespace 成员
-- 上述例外必须对 Web、`/api/v1/publish`、`/api/v1/publish` 保持一致
-- 若重传新版本时发现旧的 `PENDING_REVIEW` 版本，旧版本会被自动降回 `DRAFT`，再创建新的待审版本
+- Ordinary user publish requests create `skill_version(status=PENDING_REVIEW)`
+- A `review_task(status=PENDING)` is created synchronously
+- After review approval, the status transitions to `PUBLISHED`
+- After review rejection, the status transitions to `REJECTED`
+- On review withdrawal, the `PENDING review_task` is deleted and `skill_version` is reverted to `DRAFT`
+- Exception: when the submitter holds the `SUPER_ADMIN` platform role, the publish entry point directly creates `skill_version(status=PUBLISHED)`, skips review_task creation, and no longer requires the submitter to be a member of the target namespace
+- The above exception must behave consistently across the Web, `/api/v1/publish`, and `/api/v1/publish`
+- If an old `PENDING_REVIEW` version exists when re-uploading a new version, the old version is automatically reverted to `DRAFT`, and a new pending-review version is created
 
-### 1.2 生命周期读模型
+### 1.2 Lifecycle Read Model
 
-当前代码中的 skill 生命周期展示与操作判断，不再依赖旧的 `latestVersionStatus`、`viewingVersionStatus` 一类拼装字段，而统一基于以下 projection：
+The skill lifecycle display and operation evaluation in the current codebase no longer relies on legacy assembled fields such as `latestVersionStatus` or `viewingVersionStatus`. Instead, they are uniformly based on the following projection:
 
-- `headlineVersion`：当前详情页/我的技能列表主展示版本
-- `publishedVersion`：当前最新可公开分发的已发布版本
-- `ownerPreviewVersion`：详情 projection 中仅暴露给 owner / namespace 管理者的 `PENDING_REVIEW` 版本
-- `resolutionMode`：`PUBLISHED` / `OWNER_PREVIEW` / `NONE`
+- `headlineVersion`: the primary display version on the skill detail page / my skills list
+- `publishedVersion`: the current latest publicly distributable published version
+- `ownerPreviewVersion`: a `PENDING_REVIEW` version in the detail projection exposed only to the owner / namespace manager
+- `resolutionMode`: `PUBLISHED` / `OWNER_PREVIEW` / `NONE`
 
-业务规则：
+Business rules:
 
-- 公开入口只认 `publishedVersion`
-- owner 进入详情页时，如果没有可用 `publishedVersion`，才允许 `headlineVersion = ownerPreviewVersion`
-- 推广到全局、安装命令、公开下载都只能绑定到 `publishedVersion`
-- `hidden` 是独立治理覆盖层，不属于 skill 生命周期状态机
+- Public entry points only recognize `publishedVersion`
+- When an owner visits the detail page, `headlineVersion = ownerPreviewVersion` is only allowed when no `publishedVersion` is available
+- Promote to global, install commands, and public downloads can only be bound to `publishedVersion`
+- `hidden` is an independent governance override layer and is not part of the skill lifecycle state machine
 
-### 1.3 Skill 可见性与角色访问矩阵
+### 1.3 Skill Visibility and Role Access Matrix
 
-以下矩阵以当前后端实现为准，综合了 `VisibilityChecker`、`SkillQueryService`、`SkillDownloadService`、`ReviewPermissionChecker` 的实际行为。
+The following matrix reflects the current backend implementation, combining the actual behavior of `VisibilityChecker`, `SkillQueryService`, `SkillDownloadService`, and `ReviewPermissionChecker`.
 
-#### 1.3.1 Skill 容器读取
+#### 1.3.1 Skill Container Access
 
-| 角色 | PUBLIC | NAMESPACE_ONLY | PRIVATE | hidden 任意 visibility | 无 `publishedVersion`（`latest_version_id=null`） |
+| Role | PUBLIC | NAMESPACE_ONLY | PRIVATE | hidden (any visibility) | No `publishedVersion` (`latest_version_id=null`) |
 |------|--------|----------------|---------|------------------------|-----------------------------------------------|
-| 匿名用户 | 可读 | 不可读 | 不可读 | 不可读 | 不可读 |
-| 登录非成员 | 可读 | 不可读 | 不可读 | 不可读 | 不可读 |
-| namespace MEMBER | 可读 | 可读 | 不可读 | 不可读 | 仅自己是 owner 时可读 |
-| skill owner | 可读 | 可读 | 可读 | 可读 | 可读 |
-| namespace ADMIN / OWNER | 可读 | 可读 | 可读 | 可读 | 不可读，除非本人也是 skill owner |
-| SKILL_ADMIN / SUPER_ADMIN（仅平台角色） | 与普通登录用户一致；普通读路径不会因为平台角色自动穿透 private / hidden / unpublished |
+| Anonymous user | Can read | Cannot read | Cannot read | Cannot read | Cannot read |
+| Logged-in non-member | Can read | Cannot read | Cannot read | Cannot read | Cannot read |
+| Namespace MEMBER | Can read | Can read | Cannot read | Cannot read | Only if the member is also the owner |
+| Skill owner | Can read | Can read | Can read | Can read | Can read |
+| Namespace ADMIN / OWNER | Can read | Can read | Can read | Can read | Cannot read, unless the user is also the skill owner |
+| SKILL_ADMIN / SUPER_ADMIN (platform role only) | Same as ordinary logged-in user; the platform role alone does not automatically bypass private / hidden / unpublished restrictions |
 
-补充：
-- `hidden=true` 时，可读权限会收敛为“skill owner 或 namespace `ADMIN` / `OWNER`”
-- `visibility=PUBLIC` 也不意味着未发布 skill 可见；当 `latest_version_id` 为空时，只有 owner 能读
+Supplements:
+- When `hidden=true`, read access is narrowed to "the skill owner or namespace `ADMIN` / `OWNER`"
+- `visibility=PUBLIC` does not mean an unpublished skill is visible; when `latest_version_id` is null, only the owner can read it
 
-#### 1.3.2 Version 状态读取
+#### 1.3.2 Version Status Access
 
-| 场景 / 角色 | DRAFT | PENDING_REVIEW | PUBLISHED | REJECTED | YANKED |
+| Scenario / Role | DRAFT | PENDING_REVIEW | PUBLISHED | REJECTED | YANKED |
 |------------|-------|----------------|-----------|----------|--------|
-| 普通 skill 详情页主版本投影 | 不展示 | owner / namespace 管理者可作为 `ownerPreviewVersion` 展示 | 展示 | 不展示 | 不展示 |
-| 普通 `listVersions` 访客 | 不可见 | 不可见 | 可见 | 不可见 | 不可见 |
-| `listVersions` 的 owner / namespace ADMIN / OWNER | 可见 | 可见 | 可见 | 可见 | 可见 |
-| 常规 `getVersionDetail` | 不可读 | 仅 owner 可读 | 可读 | 不可读 | 不可读 |
-| 下载 / resolve / tag / 文件读取 | 不可用 | 不可用 | 可用 | 不可用 | 不可用 |
-| review 详情页 | 可见完整快照 | 可见完整快照 | 可见完整快照 | 可见完整快照 | 可见完整快照 |
+| Primary version projection on ordinary skill detail page | Not shown | Owner / namespace manager can display as `ownerPreviewVersion` | Shown | Not shown | Not shown |
+| Ordinary `listVersions` visitor | Not visible | Not visible | Visible | Not visible | Not visible |
+| `listVersions` for owner / namespace ADMIN / OWNER | Visible | Visible | Visible | Visible | Visible |
+| Ordinary `getVersionDetail` | Not readable | Owner-only readable | Readable | Not readable | Not readable |
+| Download / resolve / tag / file access | Unavailable | Unavailable | Available | Unavailable | Unavailable |
+| Review detail page | Full snapshot visible | Full snapshot visible | Full snapshot visible | Full snapshot visible | Full snapshot visible |
 
-补充：
-- `YANKED` 版本仍出现在管理视角的版本列表中，但不可下载
-- `yank` 当前最新已发布版本时，会重算 `latest_version_id` 指向下一个最新的 `PUBLISHED` 版本；若没有，则置空
+Supplements:
+- `YANKED` versions still appear in the management-perspective version list but cannot be downloaded
+- When yanking the most recently published version, `latest_version_id` is recalculated to point to the next most recent `PUBLISHED` version; if none exists, it is set to null
 
-#### 1.3.3 审核 / 推广 / 治理动作
+#### 1.3.3 Review / Promotion / Governance Actions
 
-| 角色 | 发布新版本 | 提交审核 | 审核团队空间 | 审核全局空间 | 提交推广 | 审核推广 | hide / unhide | yank 已发布版本 |
+| Role | Publish new version | Submit for review | Review team namespace | Review global namespace | Submit promotion | Review promotion | hide / unhide | Yank published version |
 |------|------------|----------|--------------|--------------|----------|----------|---------------|----------------|
-| 匿名用户 | 不可 | 不可 | 不可 | 不可 | 不可 | 不可 | 不可 | 不可 |
-| namespace MEMBER | 可发布到所属 namespace；新版本进入 `PENDING_REVIEW` | 自己作为 owner 时可；不能代别人提审 | 不可 | 不可 | 自己作为 owner 时可 | 不可 | 不可 | 不可 |
-| skill owner | 可 | 可 | 不可 | 不可 | 可 | 不可 | 不可 | 不可 |
-| namespace ADMIN / OWNER | 可 | 可为本空间 skill 提交审核 | 可 | 不可 | 可 | 不可 | 不可 | 不可 |
-| SKILL_ADMIN | 可提交并可代提审；但普通发布仍非直发 | 可 | 可 | 可 | 可 | 可，但不能审自己的 promotion | 不可 | 可 |
-| SUPER_ADMIN | 可跨 namespace 发布且直接 `PUBLISHED`，跳过 membership 检查和 review task | 可 | 可 | 可 | 可 | 可；review 场景下还能审自己的提交 | 可 | 可 |
+| Anonymous user | No | No | No | No | No | No | No | No |
+| Namespace MEMBER | Can publish to their own namespace; new version enters `PENDING_REVIEW` | Can if they are the owner; cannot submit on behalf of others | No | No | Can if they are the owner | No | No | No |
+| Skill owner | Yes | Yes | No | No | Yes | No | No | No |
+| Namespace ADMIN / OWNER | Yes | Can submit review for skills in this namespace | Yes | No | Yes | No | No | No |
+| SKILL_ADMIN | Can submit and submit on behalf of others; but ordinary publish still goes through review | Yes | Yes | Yes | Yes | Yes, but cannot review their own promotion | No | Yes |
+| SUPER_ADMIN | Can publish across namespaces, directly as `PUBLISHED`, bypassing membership check and review task | Yes | Yes | Yes | Yes | Yes; in the review scenario, can also review their own submissions | Yes | Yes |
 
-### 对象存储写入策略
+### Object Storage Write Strategy
 
-一期同步写入正式路径，不使用临时区：
-- 文件直接写入 `skills/{skillId}/{versionId}/{filePath}`
-- 如果数据库事务失败，对象存储中的文件成为孤儿对象
-- 定时 GC 任务：每天扫描对象存储中存在但数据库中无对应 `skill_file` 记录的文件，清理孤儿对象
-- 删除 DRAFT/REJECTED 版本时，同步清理对应的对象存储文件
+Phase 1 writes synchronously to the official path without using a temporary area:
+- Files are written directly to `skills/{skillId}/{versionId}/{filePath}`
+- If the database transaction fails, the files in object storage become orphan objects
+- Scheduled GC task: daily scan of files that exist in object storage but have no corresponding `skill_file` record in the database; orphan objects are cleaned up
+- When a DRAFT/REJECTED version is deleted, the corresponding object storage files are cleaned up synchronously
 
-### CLI publish 请求规范
+### CLI Publish Request Specification
 
 ```
 POST /api/v1/publish
 Content-Type: multipart/form-data
 Parts:
-  - file: zip 包（必需）
-  - namespace: 目标命名空间 slug（必需）
+  - file: zip package (required)
+  - namespace: target namespace slug (required)
 ```
 
-一期同步响应：服务端同步完成上传、校验、存储、持久化，返回 `200 OK` + skill_version 信息。
+Phase 1 synchronous response: the server synchronously completes upload, validation, storage, and persistence, returning `200 OK` + skill_version info.
 
-当前 CLI 默认行为：上传 → 进入审核。
-如果调用方持有 `SUPER_ADMIN`，则直接发布为 `PUBLISHED`。
-Web 端与 CLI 保持同一发布语义，只是在交互上可提供更明确的审核提示。
+Current CLI default behavior: upload → enters review.
+If the caller holds `SUPER_ADMIN`, the skill is published directly as `PUBLISHED`.
+The web frontend and CLI maintain the same publish semantics; the web UI can provide a more explicit review notification.
 
-`/api/v1/publish` 响应：
+`/api/v1/publish` response:
 
 ```json
 {
@@ -153,162 +153,162 @@ Web 端与 CLI 保持同一发布语义，只是在交互上可提供更明确�
 }
 ```
 
-## 2 团队技能提升到全局空间（派生发布）
+## 2 Promote Team Skill to Global Namespace (Derived Publish)
 
-不直接修改原 skill 的 `namespace_id`，而是在全局空间创建新的 skill，保留来源追溯。原团队 skill 继续存在，安装坐标 `@team/skill` 不受影响。
+Rather than directly modifying the original skill's `namespace_id`, a new skill is created in the global namespace while preserving source traceability. The original team skill continues to exist; its installation coordinate `@team/skill` is unaffected.
 
 ```
-团队空间技能（已发布）
+Team namespace skill (published)
     │
     ▼
-① 技能 owner 或 namespace admin 发起"提升到全局"申请
+① Skill owner or namespace admin initiates a "Promote to Global" request
     │
     ▼
-② 创建 promotion_request (source_skill_id, source_version_id, target_namespace_id, status=PENDING)
+② Create promotion_request (source_skill_id, source_version_id, target_namespace_id, status=PENDING)
     │
     ▼
-③ 平台管理员审核
-   ├── 通过 →
-   │   ① 在全局空间创建新 skill（source_skill_id = 原 skill ID）
-   │   ② 复制 source_version_id 对应版本的文件和元数据到新 skill（严格使用申请时指定的版本，不取最新）
-   │   ③ 新 skill.visibility = PUBLIC
-   │   ④ promotion_request.target_skill_id = 新 skill ID，status → APPROVED
-   │   ⑤ 搜索索引写入新 skill，同步写入审计日志
-   │   （提升关系唯一事实来源是 promotion_request，UI 查询"是否已提升"通过该表判定）
+③ Platform administrator reviews
+   ├── Approved →
+   │   ① Create a new skill in the global namespace (source_skill_id = original skill ID)
+   │   ② Copy the files and metadata of the version specified in source_version_id to the new skill (strictly uses the version specified at the time of the request, not the latest)
+   │   ③ New skill.visibility = PUBLIC
+   │   ④ promotion_request.target_skill_id = new skill ID, status → APPROVED
+   │   ⑤ Write new skill to search index, write audit log synchronously
+   │   (The unique source of truth for promotion relationships is promotion_request; UI queries of "whether promoted" are determined through this table)
    │
-   └── 拒绝 → 记录原因，原技能不受影响
+   └── Rejected → reason recorded; original skill is unaffected
 ```
 
-后续版本更新：
-- 全局空间的新 skill 由其 owner 独立管理版本
-- 原团队 skill 可继续独立迭代
-- 两者版本不自动同步，如需同步由 owner 手动操作
+Subsequent version updates:
+- The new skill in the global namespace is independently version-managed by its owner
+- The original team skill can continue to iterate independently
+- The versions of the two are not automatically synchronized; if synchronization is needed, the owner must do it manually
 
-提升流程当前严格绑定已发布版本：
+The promotion flow is currently strictly bound to the published version:
 
-- promotion request 的 `source_version_id` 必须指向 `publishedVersion.id`
-- 不允许直接提升 `ownerPreviewVersion`
+- The `source_version_id` of a promotion request must point to `publishedVersion.id`
+- Promoting `ownerPreviewVersion` directly is not allowed
 
-## 3 下载流程
-
-```
-下载请求
-    │
-    ▼
-① 校验技能状态（ACTIVE）、版本状态（PUBLISHED）
-    │
-    ▼
-② 可见性检查
-   - PUBLIC: 任何人（包括匿名用户）
-   - NAMESPACE_ONLY: 该 namespace 的成员（需登录）
-   - PRIVATE: owner 本人 + 该 namespace 的 ADMIN 以上（需登录）
-    │
-    ▼
-③ 返回预生成包或按文件清单打包
-    │
-    ▼
-④ 审计与统计
-   - audit_log 同步写入（记录下载人/IP/版本）
-   - download_count 异步更新（原子 SQL: download_count = download_count + 1）
-   - 匿名下载：审计记录 IP + User-Agent，不关联用户
-   - 已登录下载：审计记录用户 ID
-```
-
-### download_count 热点行优化预案
-
-一期使用原子 SQL 直接更新，可接受。如出现热点行瓶颈，切换为：
-1. Redis `INCR` 做实时计数（key: `skill:downloads:{skillId}`）
-2. 定时任务每 5 分钟批量回写 PostgreSQL
-3. 查询时合并 PostgreSQL 存量 + Redis 增量
-
-## 4 搜索流程
+## 3 Download Flow
 
 ```
-搜索请求 (keyword, namespaceSlug?, sortBy)
+Download request
     │
     ▼
-① 构建 SearchQuery
-   - 匿名用户：visibility 限定为 PUBLIC
-   - 已登录用户：根据命名空间成员关系计算可见范围
+① Validate skill status (ACTIVE) and version status (PUBLISHED)
+    │
+    ▼
+② Visibility check
+   - PUBLIC: anyone (including anonymous users)
+   - NAMESPACE_ONLY: members of the namespace (login required)
+   - PRIVATE: owner themselves + at least namespace ADMIN (login required)
+    │
+    ▼
+③ Return pre-generated package or package by file manifest
+    │
+    ▼
+④ Audit and statistics
+   - audit_log written synchronously (records downloader/IP/version)
+   - download_count updated asynchronously (atomic SQL: download_count = download_count + 1)
+   - Anonymous download: audit records IP + User-Agent; not linked to a user
+   - Authenticated download: audit records user ID
+```
+
+### download_count Hot Row Mitigation Plan
+
+Phase 1 uses atomic SQL for direct updates; this is acceptable. If hot row bottlenecks appear, switch to:
+1. Redis `INCR` for real-time counting (key: `skill:downloads:{skillId}`)
+2. Scheduled task batch write-back to PostgreSQL every 5 minutes
+3. Query merges PostgreSQL stored count + Redis increment
+
+## 4 Search Flow
+
+```
+Search request (keyword, namespaceSlug?, sortBy)
+    │
+    ▼
+① Build SearchQuery
+   - Anonymous user: visibility restricted to PUBLIC
+   - Authenticated user: compute visible scope based on namespace membership
     │
     ▼
 ② SearchQueryService.search(query)
     │
     ▼
-③ 返回分页结果（技能摘要 + 命名空间信息 + 评分 + 下载量）
+③ Return paginated results (skill summary + namespace info + rating + download count)
 ```
 
-## 5 收藏流程
+## 5 Favorites Flow
 
 ```
-收藏/取消收藏（需登录）→ 校验权限 → 写入/删除 skill_star
-→ 异步更新 skill.star_count（原子 SQL）
+Favorite / unfavorite (login required) → validate permissions → write/delete skill_star
+→ asynchronously update skill.star_count (atomic SQL)
 ```
 
-## 6 评分流程
+## 6 Rating Flow
 
 ```
-提交评分 (score: 1-5)（需登录）→ 校验权限 → 写入/更新 skill_rating
-→ 异步重算 skill.rating_avg 和 rating_count（SELECT AVG + Redis 分布式锁防重复重算）
+Submit rating (score: 1–5) (login required) → validate permissions → write/update skill_rating
+→ asynchronously recalculate skill.rating_avg and rating_count (SELECT AVG + Redis distributed lock to prevent duplicate recalculation)
 ```
 
-## 7 异步事件汇总
+## 7 Async Events Summary
 
-| 事件 | 触发时机 | 消费方 |
+| Event | Trigger | Consumer |
 |------|---------|--------|
-| `SkillPublishedEvent` | 审核通过 | 搜索索引写入 |
-| `SkillYankedEvent` | 版本撤回 | 搜索索引移除 |
-| `SkillDownloadedEvent` | 下载完成 | 下载计数 |
-| `SkillStarredEvent` | 收藏/取消 | 收藏计数 |
-| `SkillRatedEvent` | 评分提交 | 评分重算 |
-| `ReviewCompletedEvent` | 审核完成 | 预留给后续通知能力（当前可不消费） |
-| `SkillPromotedEvent` | 提升到全局 | 搜索索引写入（新 skill） |
+| `SkillPublishedEvent` | Review approved | Search index write |
+| `SkillYankedEvent` | Version retracted | Search index removal |
+| `SkillDownloadedEvent` | Download complete | Download count update |
+| `SkillStarredEvent` | Favorite / unfavorite | Favorite count update |
+| `SkillRatedEvent` | Rating submitted | Rating recalculation |
+| `ReviewCompletedEvent` | Review complete | Reserved for future notification capability (can be left unconsumed for now) |
+| `SkillPromotedEvent` | Promoted to global | Search index write (new skill) |
 
-一期用 Spring ApplicationEvent + `@Async` 实现，后续可替换为消息队列。
+Phase 1 uses Spring ApplicationEvent + `@Async`; can be replaced with a message queue later.
 
-### 审计日志写入策略
+### Audit Log Write Strategy
 
-审计日志统一同步落库，与业务操作在同一请求内同步写入，不走异步事件。审计是企业内部平台的刚性需求，不可容忍丢失。
+Audit logs are written synchronously to the database, within the same request as the business operation; they do not go through async events. Auditing is a hard requirement for enterprise internal platforms and cannot tolerate data loss.
 
-异步事件仅用于搜索索引、计数器等可容忍延迟的场景。如果后续需要更强一致性，引入 outbox 模式，不依赖 ApplicationEvent + @Async 承担可靠性。
+Async events are used only for scenarios where some delay is tolerable, such as search indexing and counters. If stronger consistency is required in the future, the outbox pattern should be introduced; Spring ApplicationEvent + @Async should not be relied upon for reliability.
 
-### 异步事件可靠性保障
+### Async Event Reliability Guarantee
 
-Spring ApplicationEvent + @Async 存在 Pod 被杀时事件丢失的风险。补充以下兜底机制：
+Spring ApplicationEvent + @Async carries the risk of event loss when a Pod is killed. The following fallback mechanisms are added:
 
-- 搜索索引：定时任务每小时检查 `skill_version.status = PUBLISHED` 但 `skill_search_document` 中无对应记录的版本，补建索引
-- 计数器：可接受少量丢失，定时任务每天凌晨从 `skill_star` / `skill_rating` 表重算修正
-- 优雅停机：`@Async` 线程池配置 `awaitTerminationSeconds=25`，配合 30s shutdown timeout
+- Search index: a scheduled task runs hourly to check for versions with `skill_version.status = PUBLISHED` that have no corresponding `skill_search_document` record, and builds the missing index entries
+- Counters: a small amount of loss is acceptable; a scheduled task runs nightly to recalculate and correct counts from the `skill_star` / `skill_rating` tables
+- Graceful shutdown: `@Async` thread pool configured with `awaitTerminationSeconds=25`, paired with a 30-second shutdown timeout
 
-## 8 分布式并发安全措施
+## 8 Distributed Concurrency Safety Measures
 
-| 操作 | 并发控制方式 |
+| Operation | Concurrency Control Method |
 |------|-------------|
-| 审核通过/拒绝 | 乐观锁：`UPDATE review_task SET status=? WHERE id=? AND version=?` |
-| 版本发布 | 唯一约束：`(skill_id, version)` |
-| 计数器更新 | 原子 SQL：`SET count = count + 1` |
-| 评分重算 | 异步 + Redis 分布式锁防重复重算 |
-| 写操作幂等 | Redis 存储 `X-Request-Id`，TTL 24h |
+| Review approval / rejection | Optimistic lock: `UPDATE review_task SET status=? WHERE id=? AND version=?` |
+| Version publish | Unique constraint: `(skill_id, version)` |
+| Counter update | Atomic SQL: `SET count = count + 1` |
+| Rating recalculation | Async + Redis distributed lock to prevent duplicate recalculation |
+| Write operation idempotency | Redis stores `X-Request-Id`, TTL 24h |
 
-### 幂等去重规范
+### Idempotency Deduplication Specification
 
-基于 `idempotency_record` 表实现完整幂等：
+Full idempotency implemented based on the `idempotency_record` table:
 
-- `X-Request-Id` 由客户端生成（UUID v4 格式）
-- 客户端不传时，服务端自动生成但不做幂等去重
+- `X-Request-Id` is generated by the client (UUID v4 format)
+- If the client does not provide one, the server generates one automatically but does not perform idempotency deduplication
 
-去重流程：
-1. Redis `SETNX` key=`idempotent:{requestId}`（快速去重缓存，TTL=24h）
-   - key 已存在：查询 `idempotency_record` 表返回原始结果
-2. key 不存在：插入 `idempotency_record`（status=`PROCESSING`）
-3. 执行业务逻辑
-4. 成功：更新 record 为 `COMPLETED`，填充 `resource_type` + `resource_id` + `response_status_code`
-5. 失败：更新 record 为 `FAILED`
-6. 重复请求时：查 record，COMPLETED 返回原始资源 ID，PROCESSING 返回 `409 Conflict`，FAILED 允许重试
+Deduplication flow:
+1. Redis `SETNX` key=`idempotent:{requestId}` (fast deduplication cache, TTL=24h)
+   - Key already exists: query `idempotency_record` table and return the original result
+2. Key does not exist: insert `idempotency_record` (status=`PROCESSING`)
+3. Execute business logic
+4. Success: update record to `COMPLETED`, populate `resource_type` + `resource_id` + `response_status_code`
+5. Failure: update record to `FAILED`
+6. On duplicate request: query record; COMPLETED returns the original resource ID; PROCESSING returns `409 Conflict`; FAILED allows retry
 
-适用范围：所有 POST/PUT/DELETE 写操作（发布、提审、创建 Token 等）
+Applicable scope: all POST/PUT/DELETE write operations (publish, submit for review, create Token, etc.)
 
-异常恢复策略：
-- Redis key 存在但 `idempotency_record` 无记录（进程在两步之间崩溃）：视为脏状态，删除 Redis key，允许请求正常重入
-- `idempotency_record.status = FAILED`：删除对应 Redis key，允许客户端用相同 `request_id` 重试
-- `idempotency_record.status = PROCESSING` 超过 5 分钟未更新：视为僵死，标记为 FAILED，删除 Redis key，允许重试
+Exception recovery strategy:
+- Redis key exists but `idempotency_record` has no record (process crashed between the two steps): treat as dirty state; delete the Redis key; allow the request to re-enter normally
+- `idempotency_record.status = FAILED`: delete the corresponding Redis key; allow the client to retry with the same `request_id`
+- `idempotency_record.status = PROCESSING` not updated for more than 5 minutes: treat as a dead record; mark as FAILED; delete the Redis key; allow retry

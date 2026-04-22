@@ -1,44 +1,44 @@
 ---
-title: 审核流程
+title: Review Workflow
 sidebar_position: 2
-description: 技能发布审核流程配置
+description: Skill publishing review workflow configuration
 ---
 
-# 审核流程
+# Review Workflow
 
-SkillHub 采用双层审核机制，保障技能质量。
+SkillHub uses a two-tier review mechanism to ensure skill quality.
 
-## 审核流程
+## Review Process
 
-### 团队空间技能
+### Team Space Skills
 
-1. 团队成员提交发布
-2. 创建审核任务（PENDING）
-3. 团队 ADMIN 或 OWNER 审核
-   - 通过 → 技能发布（PUBLISHED）
-   - 拒绝 → 返回修改（REJECTED）
+1. A team member submits for publishing
+2. A review task is created (PENDING)
+3. The team ADMIN or OWNER reviews it
+   - Approved → skill is published (PUBLISHED)
+   - Rejected → returned for revision (REJECTED)
 
-### 全局空间技能
+### Global Space Skills
 
-1. 提交发布
-2. 平台 SKILL_ADMIN 或 SUPER_ADMIN 审核
-3. 审核通过后发布
+1. Submit for publishing
+2. A platform SKILL_ADMIN or SUPER_ADMIN reviews it
+3. The skill is published after approval
 
-## 团队技能提升到全局
+## Promoting a Team Skill to Global
 
-1. 团队技能已发布
-2. 团队 ADMIN 或 OWNER 申请"提升到全局"
-3. 平台管理员审核
-4. 审核通过后在全局空间创建新技能
+1. The team skill must already be published
+2. The team ADMIN or OWNER applies for "Promote to Global"
+3. A platform administrator reviews the application
+4. A new skill is created in the global space after approval
 
-## 审核权限
+## Review Permissions
 
-| 审核类型 | 所需角色 |
-|---------|---------|
-| 团队空间技能审核 | 命名空间 ADMIN/OWNER |
-| 全局空间技能审核 | SKILL_ADMIN/SUPER_ADMIN |
-| 提升申请审核 | SKILL_ADMIN/SUPER_ADMIN |
+| Review Type | Required Role |
+|-------------|---------------|
+| Team space skill review | Namespace ADMIN/OWNER |
+| Global space skill review | SKILL_ADMIN/SUPER_ADMIN |
+| Promotion request review | SKILL_ADMIN/SUPER_ADMIN |
 
-## 下一步
+## Next Steps
 
-- [用户管理](./user-management) - 管理平台用户
+- [User Management](./user-management) - Manage platform users

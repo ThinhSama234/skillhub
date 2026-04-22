@@ -1,42 +1,42 @@
-# skillhub 后端日期时间治理计划
+# SkillHub Backend Date-Time Governance Plan
 
-## 1. 当前结论
+## 1. Current Conclusions
 
-当前主系统已经基本完成 UTC 语义收口：
+The main system has largely completed converging on UTC semantics:
 
-- 核心业务时间字段大多已迁到 `Instant`
-- 核心事件时间列大多已迁到 `TIMESTAMPTZ`
-- 服务层“当前时间”大多已统一走注入 `Clock`
-- 普通 API 和后台 DTO 的绝对时间已基本统一输出 UTC ISO-8601
+- Most core business time fields have been migrated to `Instant`
+- Most core event time columns have been migrated to `TIMESTAMPTZ`
+- Most service-layer "current time" calls have been unified to use an injected `Clock`
+- Absolute times in ordinary APIs and admin DTOs have been largely unified to output UTC ISO-8601
 
-系统当前保留的已经不是大范围混用，而是少量兼容尾项。剩余风险主要集中在：
+What the system currently retains is not a wide mixture but a small number of compatibility tail items. The remaining risks are primarily:
 
-- 个别旧接口仍允许无时区字符串输入
-- 新增代码如果重新引入 `LocalDateTime.now()`，可能把系统带回默认时区依赖
-- 缺少跨时区自动化回归时，仍可能遗漏边界问题
+- A few legacy endpoints still allow timezone-free string input
+- If new code reintroduces `LocalDateTime.now()`, it may pull the system back to a default-timezone dependency
+- Without cross-timezone automated regression, boundary issues may still be missed
 
-## 2. 目标
+## 2. Goals
 
-治理目标不是“所有地方都只用一种类型”，而是统一时间语义：
+The governance goal is not "use only one type everywhere" but to unify time semantics:
 
-- 绝对时间点：统一使用 UTC 语义，Java 使用 `Instant`
-- 面向业务输入的本地时间：只有在需求明确要求“本地日历时间”时才允许保留 `LocalDateTime`
-- 数据库存储绝对时间点时，统一使用 `TIMESTAMPTZ`
-- 对外 API 返回绝对时间点时，统一输出 ISO-8601 UTC 字符串，例如 `2026-03-18T06:30:00Z`
-- 不再把没有时区语义的 `LocalDateTime` 继续向领域层传播
+- Absolute points in time: use UTC semantics uniformly; Java uses `Instant`
+- Business-input local time: `LocalDateTime` is allowed only when requirements explicitly call for "local calendar time"
+- When storing absolute points in time in the database, use `TIMESTAMPTZ` uniformly
+- When returning absolute points in time in external APIs, output ISO-8601 UTC strings uniformly, for example `2026-03-18T06:30:00Z`
+- Stop propagating timezone-semantics-free `LocalDateTime` further into the domain layer
 
-这里要明确区分：
+A clear distinction must be made here:
 
-- i18n 解决的是语言、文案、本地化展示
-- 时间统一到 UTC 解决的是跨时区一致性
+- i18n addresses language, text, and localized display
+- Unifying time to UTC addresses cross-timezone consistency
 
-## 3. 目标模型
+## 3. Target Model
 
-建议把后端时间字段分成三类管理：
+It is recommended to manage backend time fields in three categories:
 
-### 3.1 系统事件时间
+### 3.1 System Event Times
 
-适用字段：
+Applicable fields:
 
 - `createdAt`
 - `updatedAt`
@@ -51,191 +51,191 @@
 - `handledAt`
 - `tokenExpiresAt`
 
-约束：
+Constraints:
 
-- Java 类型统一为 `Instant`
-- 数据库列统一为 `TIMESTAMPTZ`
-- 读写都按 UTC 绝对时间处理
+- Java type is uniformly `Instant`
+- Database column is uniformly `TIMESTAMPTZ`
+- All reads and writes are treated as UTC absolute times
 
-### 3.2 业务输入时间
+### 3.2 Business-Input Times
 
-适用场景：
+Applicable scenarios:
 
-- 用户手工输入一个“到某天某时截止”的字段
-- 规则明确绑定某个业务时区，而不是系统时区
+- A user manually inputs a "deadline by a certain date and time" field
+- A rule is explicitly bound to a specific business timezone rather than the system timezone
 
-约束：
+Constraints:
 
-- 如果该时间代表真实绝对时刻，入口就应要求带时区或明确时区来源，然后在服务层立刻转换为 `Instant`
-- 不允许把用户输入的裸 `yyyy-MM-ddTHH:mm:ss` 长期保存在核心领域模型中
+- If the time represents a real absolute moment, the entry point should require a timezone or a declared timezone source, then immediately convert to `Instant` in the service layer
+- It is not allowed to long-term store a bare `yyyy-MM-ddTHH:mm:ss` user input in core domain models
 
-### 3.3 纯日期字段
+### 3.3 Pure Date Fields
 
-适用场景：
+Applicable scenarios:
 
-- 生日
-- 账期
-- 结算日
-- 自然日统计
+- Date of birth
+- Billing period
+- Settlement date
+- Natural-day statistics
 
-约束：
+Constraints:
 
-- 使用 `LocalDate`
-- 不参与 UTC/时区转换
+- Use `LocalDate`
+- Not involved in UTC/timezone conversion
 
-## 4. 现状问题
+## 4. Current State of Issues
 
-### 4.1 历史问题已基本清理
+### 4.1 Historical Issues Are Largely Resolved
 
-此前系统的主要问题包括：
+The main historical issues in the system included:
 
-- 领域层大量使用 `LocalDateTime`
-- 服务层散落 `LocalDateTime.now()`
-- 数据库 DDL 大量使用 `TIMESTAMP`
-- 兼容层存在隐式 UTC 假设和冲突解释
+- Heavy use of `LocalDateTime` in the domain layer
+- Scattered `LocalDateTime.now()` calls in the service layer
+- Heavy use of `TIMESTAMP` in database DDL
+- Implicit UTC assumptions and conflicting interpretations in the compatibility layer
 
-当前这些问题在主链代码中已基本完成治理，保留它们主要是为了说明为什么迁移顺序必须先做基础设施，再做模型与数据库。
+These issues have been largely governed in the main chain code. They are documented primarily to explain why the migration order must start with infrastructure, then domain models, then the database.
 
-### 4.2 当前仍存在的实际问题
+### 4.2 Issues That Still Exist Today
 
-- `ApiTokenService` 仍兼容裸时间字符串输入
-- 尚未建立静态约束来阻止未来重新引入 `LocalDateTime.now()`
-- 尚未形成系统性的跨时区回归基线
+- `ApiTokenService` still accepts bare time strings for compatibility
+- No static constraints have been established to prevent future reintroduction of `LocalDateTime.now()`
+- No systematic cross-timezone regression baseline has been established
 
-## 5. 治理原则
+## 5. Governance Principles
 
-- 先统一新增代码，再迁移存量代码
-- 先统一领域模型，再迁移数据库，再收口 API
-- 所有“当前时间”获取统一从 `Clock` 注入，禁止继续散落 `now()`
-- 迁移期间优先保证 API 兼容，避免前端和 CLI 同时破坏
-- 对外只暴露明确语义的时间格式，不暴露“无时区但又默认是 UTC”的灰色状态
+- Unify new code first, then migrate existing code
+- Unify domain models first, then migrate the database, then converge APIs
+- All "current time" retrieval must be uniformly injected via `Clock`; scattered `now()` calls are prohibited
+- During migration, prioritize API compatibility to avoid breaking the frontend and CLI simultaneously
+- Expose only time formats with explicit semantics externally; do not expose a gray state that is "timezone-free but assumed to be UTC"
 
-## 6. 分阶段计划
+## 6. Phased Plan
 
-### Phase 0：基线审计
+### Phase 0: Baseline Audit
 
-产出：
+Deliverables:
 
-- 全量时间字段清单
-- `LocalDateTime` / `Instant` / `LocalDate` 使用清单
-- `TIMESTAMP` / `TIMESTAMPTZ` 列清单
-- API 请求与响应中的时间字段清单
-- 兼容层中所有 epoch 转换点清单
+- Complete inventory of time fields
+- Inventory of `LocalDateTime` / `Instant` / `LocalDate` usage
+- Inventory of `TIMESTAMP` / `TIMESTAMPTZ` columns
+- Inventory of time fields in API requests and responses
+- Inventory of all epoch conversion points in the compatibility layer
 
-当前状态：
+Current status:
 
-- 已完成初版盘点
-- 已同步到当前代码真实进展
+- Initial inventory completed
+- Synchronized with current real code progress
 
-### Phase 1：统一规范与基础设施
+### Phase 1: Unified Standards and Infrastructure
 
-执行内容：
+Actions:
 
-- 新增全局 UTC `Clock`
-- 配置 Hibernate JDBC 时区为 UTC
-- 配置 Jackson UTC 输出
-- 建立“绝对时间用 `Instant`”规范
+- Add a global UTC `Clock`
+- Configure Hibernate JDBC timezone to UTC
+- Configure Jackson UTC output
+- Establish "use `Instant` for absolute times" standard
 
-当前状态：
+Current status:
 
-- 已完成
+- Complete
 
-### Phase 2：代码层迁移到 `Instant`
+### Phase 2: Code-Layer Migration to `Instant`
 
-执行内容：
+Actions:
 
-- 实体字段改为 `Instant`
-- `LocalDateTime.now()` 改为 `Instant.now(clock)`
-- 比较逻辑统一为 `Instant`
-- DTO 与服务同步迁移
+- Change entity fields to `Instant`
+- Change `LocalDateTime.now()` to `Instant.now(clock)`
+- Unify comparison logic to `Instant`
+- Migrate DTOs and services in tandem
 
-当前状态：
+Current status:
 
-- 主链已基本完成
-- 生产代码中仅剩极少数兼容解析代码保留 `LocalDateTime`
+- Main chain is largely complete
+- Only a very small number of compatibility parsing code paths in production code still retain `LocalDateTime`
 
-### Phase 3：数据库迁移到 `TIMESTAMPTZ`
+### Phase 3: Database Migration to `TIMESTAMPTZ`
 
-执行内容：
+Actions:
 
-- 为核心表新增 Flyway migration
-- 明确历史 `TIMESTAMP` 数据按 UTC 解释
+- Add Flyway migrations for core tables
+- Explicitly interpret historical `TIMESTAMP` data as UTC
 
-当前状态：
+Current status:
 
-- 主链核心事件时间列已基本完成
-- 已落地 migration `V13` 到 `V23`
+- Main chain core event time columns are largely complete
+- Migrations `V13` through `V23` have been applied
 
-### Phase 4：API 契约收口
+### Phase 4: API Contract Convergence
 
-执行内容：
+Actions:
 
-- 普通 JSON API 中所有绝对时间字段统一输出 UTC 字符串
-- 禁止接口返回裸 `LocalDateTime.toString()`
-- 逐步淘汰无时区输入
+- Unify all absolute time fields in ordinary JSON APIs to output UTC strings
+- Prohibit endpoints from returning bare `LocalDateTime.toString()`
+- Gradually retire timezone-free input
 
-当前状态：
+Current status:
 
-- 普通 API 与后台 DTO 已基本完成 UTC 输出收口
-- 剩余兼容重点是旧接口对裸时间字符串输入的处理策略
+- Ordinary APIs and admin DTOs have largely completed UTC output convergence
+- The remaining compatibility focus is the policy for handling bare time string input in legacy endpoints
 
-### Phase 5：清理与强约束
+### Phase 5: Cleanup and Hard Constraints
 
-执行内容：
+Actions:
 
-- 清理遗留兼容时区假设
-- 增加 ArchUnit 或静态扫描规则
-- 增加跨时区测试，例如 `UTC` 与 `Asia/Shanghai`
+- Clean up residual compatibility timezone assumptions
+- Add ArchUnit or static scan rules
+- Add cross-timezone tests, for example `UTC` and `Asia/Shanghai`
 
-当前状态：
+Current status:
 
-- 尚未完成
-- 这是下一阶段最有价值的工作
+- Not yet complete
+- This is the most valuable work for the next phase
 
-## 7. 重点技术决策
+## 7. Key Technical Decisions
 
-### 7.1 为什么用 `Clock` 而不是只用 `Instant.now()`
+### 7.1 Why Use `Clock` Instead of Just `Instant.now()`
 
-- `Instant` 解决“时间如何表达”
-- `Clock` 解决“当前时间从哪里来”
-- 推荐组合是 `Instant.now(clock)`
+- `Instant` solves "how time is expressed"
+- `Clock` solves "where the current time comes from"
+- The recommended combination is `Instant.now(clock)`
 
-这使服务层可测试、可固定时间、可避免机器本地时区干扰。
+This makes the service layer testable, allows time to be fixed, and avoids interference from the machine's local timezone.
 
-### 7.2 是否统一引入 `OffsetDateTime`
+### 7.2 Whether to Uniformly Introduce `OffsetDateTime`
 
-本项目更适合以 `Instant` 作为核心绝对时间类型，原因是：
+This project is better suited to use `Instant` as the core absolute time type, for the following reasons:
 
-- 多数字段表达的是事件发生时刻
-- 业务侧通常不需要保留原始 offset
-- `Instant` 更能防止“看起来像本地时间”的误解
+- Most fields express the moment an event occurred
+- The business side usually does not need to retain the original offset
+- `Instant` is better at preventing the misunderstanding of "looks like local time"
 
-只有在必须保留调用方原始 offset 的场景下，才考虑 `OffsetDateTime`。
+`OffsetDateTime` should only be considered in scenarios where the caller's original offset must be retained.
 
-### 7.3 `expiresAt` 这类用户输入字段怎么处理
+### 7.3 How to Handle User-Input Fields Like `expiresAt`
 
-长期目标：
+Long-term goal:
 
-- API 约定输入为 RFC 3339 / ISO-8601 带时区时间
-- 服务层解析后立即转换为 `Instant`
+- API contract requires input as RFC 3339 / ISO-8601 time with timezone
+- After parsing in the service layer, immediately convert to `Instant`
 
-短期兼容：
+Short-term compatibility:
 
-- 旧接口若仍接受裸字符串，应在 controller 或 service 边界集中兜底
-- 必须明确记录这是兼容逻辑，而不是长期契约
+- Legacy endpoints that still accept bare strings should centralize the fallback handling at the controller or service boundary
+- This must be explicitly documented as compatibility logic, not a long-term contract
 
-## 8. 风险与应对
+## 8. Risks and Mitigations
 
-| 风险 | 应对 |
+| Risk | Mitigation |
 |------|------|
-| 历史 `TIMESTAMP` 数据真实语义不一致 | 先做抽样和数据画像，必要时分批迁移 |
-| 前端或 CLI 已依赖不带时区的旧格式 | 保留短期兼容解析，同时明确废弃计划 |
-| 新代码继续引入 `LocalDateTime.now()` | 加静态扫描和 review 规则阻断 |
-| 缺少跨时区回归导致边界问题漏检 | 增加 `UTC` / `Asia/Shanghai` 双时区测试矩阵 |
+| Historical `TIMESTAMP` data semantics are inconsistent | Sample and profile the data first; migrate in batches if needed |
+| Frontend or CLI already depends on the old timezone-free format | Retain short-term compatibility parsing while declaring a clear deprecation plan |
+| New code continues to introduce `LocalDateTime.now()` | Add static scan and review rules to block it |
+| Missing cross-timezone regression causes boundary issues to go undetected | Add a `UTC` / `Asia/Shanghai` dual-timezone test matrix |
 
-## 9. 推荐后续顺序
+## 9. Recommended Follow-Up Order
 
-1. 为 `LocalDateTime.now()` 和实体层 `LocalDateTime` 增加静态约束
-2. 增加跨时区回归测试
-3. 梳理并逐步淘汰裸时间字符串输入兼容
-4. 对生产历史数据做一次抽样校验，确认所有 `TIMESTAMPTZ` 迁移都符合 UTC 解释假设
+1. Add static constraints for `LocalDateTime.now()` and entity-layer `LocalDateTime`
+2. Add cross-timezone regression tests
+3. Review and gradually retire bare time string input compatibility
+4. Perform a sampling verification of production historical data to confirm that all `TIMESTAMPTZ` migrations comply with the UTC interpretation assumption

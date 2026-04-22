@@ -1,41 +1,41 @@
 ---
-title: 团队命名空间
+title: Team Namespaces
 sidebar_position: 1
-description: 在团队命名空间中协作
+description: Collaborate within team namespaces
 ---
 
-# 团队命名空间
+# Team Namespaces
 
-## 加入命名空间
+## Joining a Namespace
 
-需要命名空间管理员邀请才能加入团队命名空间。
+A namespace administrator must invite you before you can join a team namespace.
 
-## 命名空间角色
+## Namespace Roles
 
 ### MEMBER
-- 可查看命名空间内所有技能
-- 可发布技能（需审核）
-- 可收藏和评分
+- Can view all skills within the namespace
+- Can publish skills (subject to review)
+- Can star and rate skills
 
 ### ADMIN
-- 所有 MEMBER 权限
-- 可审核技能发布
-- 可管理成员
-- 可编辑命名空间信息
+- All MEMBER permissions
+- Can review skill publications
+- Can manage members
+- Can edit namespace information
 
 ### OWNER
-- 所有 ADMIN 权限
-- 可转让所有权
-- 可归档命名空间
+- All ADMIN permissions
+- Can transfer ownership
+- Can archive the namespace
 
-## 技能可见性
+## Skill Visibility
 
-| 可见性 | 说明 |
-|--------|------|
-| `PUBLIC` | 所有人可见，匿名可下载 |
-| `NAMESPACE_ONLY` | 仅命名空间成员可见 |
-| `PRIVATE` | 仅 owner 和命名空间 ADMIN 可见 |
+| Visibility | Description |
+|------------|-------------|
+| `PUBLIC` | Visible to everyone; anonymous users can download |
+| `NAMESPACE_ONLY` | Visible to namespace members only |
+| `PRIVATE` | Visible to the owner and namespace ADMINs only |
 
-## 下一步
+## Next Steps
 
-- [提升到全局](./promotion) - 将团队技能推广到全局
+- [Promote to Global](./promotion) - Promote a team skill to the global space

@@ -1,24 +1,24 @@
-# skillhub 后端时间字段台账
+# SkillHub Backend Time Field Inventory
 
-## 1. 扫描范围
+## 1. Scan Scope
 
-本台账基于 `server/skillhub-app`、`server/skillhub-auth`、`server/skillhub-domain`、`server/skillhub-infra`、`server/skillhub-storage` 的当前生产代码与 Flyway migration。
+This inventory is based on the current production code and Flyway migrations in `server/skillhub-app`, `server/skillhub-auth`, `server/skillhub-domain`, `server/skillhub-infra`, and `server/skillhub-storage`.
 
-目标已经从“摸底问题分布”转为“记录当前真实进展与剩余尾项”。
+The goal has shifted from "mapping the distribution of issues" to "recording the current real progress and remaining tail items."
 
-## 2. 当前代码分布
+## 2. Current Code Distribution
 
-### 2.1 生产代码中的 `LocalDateTime` 已基本清空
+### 2.1 `LocalDateTime` in Production Code Is Largely Cleared
 
-当前生产代码里只剩 1 处兼容解析保留 `LocalDateTime`：
+Only 1 compatibility parsing instance of `LocalDateTime` remains in current production code:
 
 - `ApiTokenService`
-  - 用于兼容旧接口传入的裸时间字符串
-  - 当前明确按 UTC 解释后转成 `Instant`
+  - Used for compatibility with bare time strings passed in by legacy endpoints
+  - Currently explicitly interpreted as UTC and converted to `Instant`
 
-此前集中使用 `LocalDateTime` 的主链区域已完成迁移或收口：
+Main chain areas that previously used `LocalDateTime` heavily have completed migration or convergence:
 
-- 认证与账号：
+- Authentication and accounts:
   - `api_token`
   - `account_merge_request`
   - `user_account`
@@ -26,7 +26,7 @@
   - `role`
   - `user_role_binding`
   - `local_credential`
-- 核心领域：
+- Core domain:
   - `namespace`
   - `namespace_member`
   - `skill`
@@ -37,7 +37,7 @@
   - `skill_report`
   - `skill_star`
   - `skill_rating`
-- 服务层：
+- Service layer:
   - `AccountMergeService`
   - `LocalAuthService`
   - `SkillPublishService`
@@ -45,7 +45,7 @@
   - `ReviewService`
   - `PromotionService`
   - `SkillReportService`
-- DTO 与接口输出：
+- DTOs and API output:
   - `NamespaceResponse`
   - `MemberResponse`
   - `SkillSummaryResponse`
@@ -55,36 +55,36 @@
   - `AdminUserSummaryResponse`
   - `AdminSkillReportSummaryResponse`
 
-结论：
+Conclusion:
 
-- 主系统核心“事件发生时间”已经基本收口成 UTC 绝对时间
-- 当前剩余工作主要是兼容策略、数据库尾项复核和防回归约束
+- Core "event occurrence time" in the main system has been largely converged to UTC absolute time
+- The remaining work is mainly compatibility policy, database tail-item review, and anti-regression constraints
 
-### 2.2 `Instant` 已成为主流绝对时间类型
+### 2.2 `Instant` Has Become the Mainstream Absolute Time Type
 
-当前已稳定使用 `Instant` 的代表区域：
+Representative areas currently using `Instant` stably:
 
-- 审计：
+- Audit:
   - `AuditLog`
   - `AuditLogItemResponse`
-- 通知：
+- Notifications:
   - `UserNotification`
-- 审核流程：
+- Review workflow:
   - `ReviewTask`
   - `PromotionRequest`
   - `ReviewTaskResponse`
   - `PromotionResponseDto`
-- 幂等：
+- Idempotency:
   - `IdempotencyRecord`
   - `IdempotencyInterceptor`
   - `IdempotencyCleanupTask`
-- 技能主链：
+- Skill main chain:
   - `Skill`
   - `SkillVersion`
   - `SkillTag`
   - `SkillFile`
   - `SkillVersionStats`
-- 认证主链：
+- Authentication main chain:
   - `ApiToken`
   - `AccountMergeRequest`
   - `UserAccount`
@@ -93,9 +93,9 @@
   - `UserRoleBinding`
   - `LocalCredential`
 
-## 3. 数据库层分布
+## 3. Database Layer Distribution
 
-### 3.1 已完成的 `TIMESTAMPTZ` 迁移
+### 3.1 Completed `TIMESTAMPTZ` Migrations
 
 - `V12__governance_notifications.sql`
   - `user_notification.created_at / read_at`
@@ -132,29 +132,29 @@
   - `promotion_request.submitted_at / reviewed_at`
   - `idempotency_record.created_at / expires_at`
 
-### 3.2 当前状态
+### 3.2 Current Status
 
-- 主链核心事件时间列已基本完成 `TIMESTAMPTZ` 收口
-- 初始建表 migration 中仍然能看到旧 `TIMESTAMP` 定义，但已由后续 Flyway 升级覆盖
-- 后续重点不是“大批量迁移”，而是查漏补缺和约束新增
+- Main chain core event time columns have largely completed `TIMESTAMPTZ` convergence
+- Initial table-creation migrations still show old `TIMESTAMP` definitions, but these have been covered by subsequent Flyway upgrades
+- The next focus is not "large-scale migration" but gap-filling and adding new constraints
 
-## 4. 已解决的高风险热点
+## 4. Resolved High-Risk Hotspots
 
-### 4.1 兼容层时区解释冲突
+### 4.1 Compatibility Layer Timezone Interpretation Conflict
 
-此前：
+Previously:
 
-- `ClawHubCompatController` 按 `ZoneOffset.UTC` 转 epoch
-- `ClawHubRegistryFacade` 按系统默认时区解释
+- `ClawHubCompatController` converted epoch using `ZoneOffset.UTC`
+- `ClawHubRegistryFacade` interpreted using the system default timezone
 
-当前：
+Currently:
 
-- 已统一按 UTC 解释绝对时间
-- `ClawHubRegistryFacade` 的 `LocalDateTime` epoch 转换重载已移除
+- All absolute times are uniformly interpreted as UTC
+- The `LocalDateTime` epoch conversion overload in `ClawHubRegistryFacade` has been removed
 
-### 4.2 服务层散落的 `now()`
+### 4.2 Scattered `now()` Calls in the Service Layer
 
-此前热点包括：
+Previous hotspots included:
 
 - `ApiTokenService`
 - `AccountMergeService`
@@ -164,30 +164,30 @@
 - `ReviewService`
 - `PromotionService`
 - `SkillReportService`
-- 多个实体 `@PrePersist` / `@PreUpdate`
+- Multiple entity `@PrePersist` / `@PreUpdate` callbacks
 
-当前：
+Currently:
 
-- 服务层当前时间已基本统一为注入 `Clock`
-- 实体回调已基本统一为显式 UTC
+- Service-layer current time has been largely unified to use an injected `Clock`
+- Entity callbacks have been largely unified to use explicit UTC
 
-## 5. 分批迁移进展
+## 5. Batch Migration Progress
 
-### Batch 1：基础设施与治理链路
+### Batch 1: Infrastructure and Governance Chain
 
-已完成：
+Completed:
 
-- UTC `Clock` Bean
-- Hibernate UTC 配置
-- Jackson UTC 配置
+- UTC `Clock` bean
+- Hibernate UTC configuration
+- Jackson UTC configuration
 - `ApiResponseFactory`
 - `IdempotencyInterceptor`
 - `IdempotencyCleanupTask`
-- 审计、通知、审核、幂等链路
+- Audit, notification, review, and idempotency chains
 
-### Batch 2：认证与账号链路
+### Batch 2: Authentication and Account Chain
 
-已完成：
+Completed:
 
 - `ApiToken` / `ApiTokenService`
 - `AccountMergeRequest` / `AccountMergeService`
@@ -198,9 +198,9 @@
 - `UserRoleBinding`
 - `LocalAuthService`
 
-### Batch 3：技能核心领域
+### Batch 3: Skill Core Domain
 
-已完成：
+Completed:
 
 - `Skill`
 - `SkillVersion`
@@ -217,9 +217,9 @@
 - `SkillStar`
 - `SkillRating`
 
-### Batch 4：DTO 与 API 契约收口
+### Batch 4: DTO and API Contract Convergence
 
-已完成：
+Completed:
 
 - `NamespaceResponse`
 - `MemberResponse`
@@ -229,10 +229,10 @@
 - `TagResponse`
 - `AdminUserSummaryResponse`
 - `AdminSkillReportSummaryResponse`
-- `TokenController` 的 UTC 输出收口
+- UTC output convergence in `TokenController`
 
-## 6. 当前剩余尾项
+## 6. Current Remaining Tail Items
 
-- `ApiTokenService` 仍保留对裸 `LocalDateTime` 字符串的兼容解析
-- 需要补静态扫描或 ArchUnit 约束，防止新增 `LocalDateTime.now()`
-- 需要做一轮跨时区回归，把 `UTC` / `Asia/Shanghai` 纳入关键测试
+- `ApiTokenService` still retains compatibility parsing for bare `LocalDateTime` strings
+- Static scan or ArchUnit constraints need to be added to prevent new `LocalDateTime.now()` calls
+- A cross-timezone regression pass needs to be done, incorporating `UTC` / `Asia/Shanghai` into key tests

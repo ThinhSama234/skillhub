@@ -1,63 +1,63 @@
 ---
-title: 权限管理
+title: Authorization
 sidebar_position: 2
-description: RBAC 权限系统配置
+description: RBAC permission system configuration
 ---
 
-# 权限管理
+# Authorization
 
-SkillHub 采用基于角色的访问控制（RBAC）系统。
+SkillHub uses a Role-Based Access Control (RBAC) system.
 
-当前代码里实际存在两套并行角色体系：
+In the current codebase there are actually two parallel role systems:
 
-- 平台角色：控制后台治理、用户管理、审计等平台级能力。
-- 命名空间角色：控制某个团队空间内的成员、发布、审核、归档等操作。
+- Platform roles: control platform-level capabilities such as backend governance, user management, and auditing.
+- Namespace roles: control operations within a specific team space, such as managing members, publishing, reviewing, and archiving.
 
-二者会同时参与鉴权，但不是一套角色的上下级映射。
+Both systems participate in authorization simultaneously, but they are not a parent-child mapping of a single role hierarchy.
 
-## 平台角色
+## Platform Roles
 
-### 代码里实际初始化的显式平台角色
+### Explicit Platform Roles Initialized in Code
 
-数据库迁移只初始化了 4 个显式平台角色：
+The database migration only initializes 4 explicit platform roles:
 
-| 角色 | 代码 | 实际能力 |
-|------|------|----------|
-| 超级管理员 | `SUPER_ADMIN` | 拥有全部权限；`RbacService#getUserPermissions` 会直接返回全部权限码；可访问所有 `SUPER_ADMIN`/`SKILL_ADMIN`/`USER_ADMIN`/`AUDITOR` 能访问的接口；可分配 `SUPER_ADMIN`；发布技能时可绕过命名空间成员校验并直接自动发布；但仍不能审批自己提交的 promotion，且普通审核单若是自己提交的，也只有 `SUPER_ADMIN` 能特判审批。 |
-| 技能管理员 | `SKILL_ADMIN` | 可访问技能治理后台接口；可隐藏/取消隐藏技能、撤回版本（yank）、处理技能举报；可查看和处理全局空间审核、promotion 审核、治理工作台收件箱中的 review/promotion/report；不能分配平台角色、不能看审计日志、不能管理用户。 |
-| 用户管理员 | `USER_ADMIN` | 可访问用户管理接口；可列表用户、审批用户、启用/禁用用户、修改平台角色；不能分配 `SUPER_ADMIN`；不能处理技能治理、不能看审计日志。 |
-| 审计员 | `AUDITOR` | 只读查看审计日志；可访问 `/api/v1/admin/audit-logs` 和 `/actuator/prometheus`；治理工作台中只能看 activity，不能处理 review/promotion/report，也不能管理用户或技能。 |
+| Role | Code | Actual Capabilities |
+|------|------|---------------------|
+| Super Administrator | `SUPER_ADMIN` | Has all permissions; `RbacService#getUserPermissions` returns all permission codes directly; can access all endpoints accessible by `SUPER_ADMIN`/`SKILL_ADMIN`/`USER_ADMIN`/`AUDITOR`; can assign `SUPER_ADMIN`; can bypass namespace membership checks when publishing a skill and auto-publish directly; however, cannot approve a promotion they submitted themselves, and for regular reviews submitted by themselves, only `SUPER_ADMIN` has a special-case allowance to approve. |
+| Skill Administrator | `SKILL_ADMIN` | Can access skill governance backend APIs; can hide/unhide skills, yank versions, handle skill reports; can view and process global space reviews, promotion reviews, and review/promotion/report items in the governance workbench inbox; cannot assign platform roles, cannot view audit logs, cannot manage users. |
+| User Administrator | `USER_ADMIN` | Can access user management APIs; can list users, approve users, enable/disable users, and modify platform roles; cannot assign `SUPER_ADMIN`; cannot handle skill governance or view audit logs. |
+| Auditor | `AUDITOR` | Read-only access to audit logs; can access `/api/v1/admin/audit-logs` and `/actuator/prometheus`; in the governance workbench can only view activity — cannot process review/promotion/report items, and cannot manage users or skills. |
 
-### 运行时默认平台角色
+### Runtime Default Platform Role
 
-| 角色 | 代码 | 实际逻辑 |
-|------|------|----------|
-| 默认用户 | `USER` | 不是 `role` 表里的显式初始化记录。只要用户没有任何显式平台角色绑定，登录态和 `RbacService#getUserRoleCodes` 都会自动补上 `USER`。它主要表示“普通已登录用户”，没有额外后台治理权限。 |
+| Role | Code | Actual Logic |
+|------|------|--------------|
+| Default User | `USER` | Not an explicitly initialized record in the `role` table. As long as a user has no explicit platform role binding, both the login session and `RbacService#getUserRoleCodes` will automatically fall back to `USER`. It primarily represents "a regular logged-in user" with no additional backend governance permissions. |
 
-### 需要特别注意的实现细节
+### Important Implementation Details
 
-- 当前管理接口的“修改用户角色”是单值覆盖，不是追加：`PUT /api/v1/admin/users/{userId}/role` 先清空该用户现有平台角色，再写入一个目标角色；当目标角色是 `USER` 时，不会写数据库记录，而是依赖运行时默认补位。
-- 代码底层仍然支持“一个用户拥有多个显式平台角色”的读取与鉴权，因为 session、token 和 `RbacService` 都是按角色集合处理；只是当前管理接口不会这样分配。
-- `SUPER_ADMIN` 是唯一一个在权限查询时被视为“拥有全部 permission code”的角色，其它角色依赖 `role_permission` 关联表。
+- The "modify user role" management API is a single-value overwrite, not an append: `PUT /api/v1/admin/users/{userId}/role` clears all existing platform roles for the user first, then writes one target role; when the target role is `USER`, no database record is written — the runtime default fallback is used instead.
+- The underlying code still supports reading and authorizing "a user with multiple explicit platform roles," because sessions, tokens, and `RbacService` all operate on a set of roles; the current management API simply does not assign them this way.
+- `SUPER_ADMIN` is the only role treated as "having all permission codes" during permission queries; all other roles depend on the `role_permission` association table.
 
-## 命名空间角色
+## Namespace Roles
 
-| 角色 | 实际能力 |
-|------|----------|
-| `OWNER` | 创建团队空间时自动成为 `OWNER`。可更新命名空间信息、管理成员、冻结/解冻空间、归档/恢复空间、转移所有权；可提交 review；可审核团队空间 review；可访问私有技能；可管理受限技能生命周期（归档、反归档、删除草稿/驳回版本等）。 |
-| `ADMIN` | 可更新命名空间信息、管理成员、冻结/解冻空间；不能归档/恢复空间，也不能直接把别人设为 `OWNER`；可提交 review；可审核团队空间 review；可访问私有技能；可管理受限技能生命周期。 |
-| `MEMBER` | 默认加入全局空间时获得 `MEMBER`。可在所在命名空间发布技能、提交 review；但不能审核 review、不能管理成员、不能冻结/归档空间；私有技能也不能仅因 `MEMBER` 身份访问，私有技能要求 owner 或 `ADMIN/OWNER`。 |
+| Role | Actual Capabilities |
+|------|---------------------|
+| `OWNER` | Automatically becomes `OWNER` when a team space is created. Can update namespace information, manage members, freeze/unfreeze the space, archive/restore the space, and transfer ownership; can submit reviews; can approve team space reviews; can access private skills; can manage restricted skill lifecycles (archiving, unarchiving, deleting drafts/rejected versions, etc.). |
+| `ADMIN` | Can update namespace information, manage members, and freeze/unfreeze the space; cannot archive/restore the space or directly set someone else as `OWNER`; can submit reviews; can approve team space reviews; can access private skills; can manage restricted skill lifecycles. |
+| `MEMBER` | Obtained by default when joining the global space. Can publish skills and submit reviews within their namespace; cannot approve reviews, cannot manage members, cannot freeze/archive the space; private skills are also not accessible solely by virtue of `MEMBER` status — private skills require being the owner or having `ADMIN/OWNER` role. |
 
-### 命名空间角色的边界
+### Namespace Role Boundaries
 
-- `GLOBAL` 空间是只读系统空间，不能通过命名空间治理接口修改；全局空间 review/promotion/report 处理依赖平台角色 `SKILL_ADMIN`/`SUPER_ADMIN`，不是依赖全局空间成员身份。
-- `NAMESPACE_ONLY` 可见性的技能，任何该命名空间成员都能访问。
-- `PRIVATE` 可见性的技能，只有技能 owner 或命名空间 `ADMIN/OWNER` 能访问，`MEMBER` 不行。
+- The `GLOBAL` space is a read-only system space and cannot be modified through namespace governance APIs; processing reviews/promotions/reports in the global space depends on the platform roles `SKILL_ADMIN`/`SUPER_ADMIN`, not on global space membership.
+- Skills with `NAMESPACE_ONLY` visibility can be accessed by any member of that namespace.
+- Skills with `PRIVATE` visibility can only be accessed by the skill owner or namespace `ADMIN/OWNER` — `MEMBER` cannot access them.
 
-## 权限配置
+## Permission Configuration
 
-通过后台分配平台角色，通过命名空间成员关系分配命名空间角色。
+Platform roles are assigned through the admin panel; namespace roles are assigned through namespace membership.
 
-## 下一步
+## Next Steps
 
-- [审计日志](./audit-logs) - 查看操作审计
+- [Audit Logs](./audit-logs) - View operation audit logs

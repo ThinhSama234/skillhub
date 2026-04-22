@@ -82,3 +82,10 @@ docs/superpowers/
 # Local workspace metadata
 AGENTS.md
 CLAUDE.md
+
+# gigikit-managed (do not edit this block)
+.claude/
+CLAUDE.md
+AGENTS.md
+plans/templates/
+# end gigikit-managed

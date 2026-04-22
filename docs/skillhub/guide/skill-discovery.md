@@ -1,114 +1,114 @@
-# Skill 搜索与发现
+# Skill Search and Discovery
 
-## 功能描述
+## Feature Description
 
-SkillHub 提供了强大的全文搜索功能，让用户可以快速找到需要的技能包。
+SkillHub provides powerful full-text search capabilities that allow users to quickly find the skill packages they need.
 
-搜索不仅支持关键词匹配，还支持按命名空间、标签、下载量、评分等多维度过滤和排序。
+Search supports not only keyword matching, but also multi-dimensional filtering and sorting by namespace, tag, download count, rating, and more.
 
-![概念图](/diagrams/skill-discovery-concept.png)
+![Concept diagram](/diagrams/skill-discovery-concept.png)
 
-**核心特性**：
+**Core features**:
 
-- **全文搜索**：搜索技能包名称、描述、标签、作者
-- **智能过滤**：按命名空间、标签、可见性过滤
-- **多种排序**：按相关性、下载量、评分、更新时间排序
-- **权限感知**：只显示用户有权访问的技能包
-- **实时更新**：新发布的技能包立即出现在搜索结果中
+- **Full-text search**: Search skill package names, descriptions, tags, and authors
+- **Smart filtering**: Filter by namespace, tags, and visibility
+- **Multiple sort orders**: Sort by relevance, download count, rating, or update time
+- **Permission-aware**: Only shows skill packages the user has access to
+- **Real-time updates**: Newly published skill packages appear in search results immediately
 
-**搜索算法**：
+**Search algorithm**:
 
-SkillHub 使用 PostgreSQL 全文搜索，支持：
-- 中英文分词
-- 模糊匹配
-- 权重排序（标题权重 > 描述权重 > 标签权重）
+SkillHub uses PostgreSQL full-text search, supporting:
+- Chinese and English word segmentation
+- Fuzzy matching
+- Weighted ranking (title weight > description weight > tag weight)
 
-## 使用场景
+## Use Cases
 
-**场景一：新成员探索**
+**Scenario 1: New member exploration**
 
-新加入团队的开发者想了解团队已有哪些可用的技能包。
+A developer who just joined a team wants to see what skill packages the team already has available.
 
-![操作截图](/screenshots/skill-discovery-search.png)
+![Screenshot](/screenshots/skill-discovery-search.png)
 
-**场景二：按需查找**
+**Scenario 2: Search on demand**
 
-开发者需要一个处理 PDF 的技能包，搜索 "pdf" 关键词。
+A developer needs a skill package for handling PDFs, and searches for the keyword "pdf".
 
-**场景三：浏览热门**
+**Scenario 3: Browse popular packages**
 
-查看团队内下载量最高、评分最好的技能包，学习最佳实践。
+View the skill packages with the highest download count and best ratings within the team to learn best practices.
 
-**场景四：按标签过滤**
+**Scenario 4: Filter by tag**
 
-只查看 `data-processing` 标签的技能包。
+View only skill packages with the `data-processing` tag.
 
-## 使用步骤
+## Usage Steps
 
-### 使用 CLI 搜索和安装（推荐）
+### Search and Install via CLI (Recommended)
 
 ```bash
-# 配置注册中心
+# Configure the registry
 export CLAWHUB_REGISTRY=http://localhost:8080
 
-# 搜索技能包
+# Search for skill packages
 npx clawhub search pdf
 
-# 安装技能包
+# Install a skill package
 npx clawhub install pdf-parser
 
-# 安装指定命名空间的技能包
+# Install a skill package from a specific namespace
 npx clawhub install my-team--pdf-parser
 ```
 
-### 使用 Web UI 搜索
+### Search via Web UI
 
-1. **访问搜索页面**
+1. **Access the search page**
 
-访问 `http://localhost:3000/search` 或在首页使用搜索框。
+   Go to `http://localhost:3000/search` or use the search box on the home page.
 
-2. **输入关键词**
+2. **Enter keywords**
 
-在搜索框输入关键词，例如 "pdf parser"。
+   Type keywords in the search box, e.g. "pdf parser".
 
-3. **应用过滤器**
+3. **Apply filters**
 
-- 选择命名空间（例如只看 `iflytek` 命名空间）
-- 选择标签（例如 `data-processing`）
-- 选择排序方式（例如按下载量降序）
+   - Select a namespace (e.g. show only the `iflytek` namespace)
+   - Select tags (e.g. `data-processing`)
+   - Select a sort order (e.g. sort by download count descending)
 
-![流程图](/diagrams/skill-discovery-flow.png)
+![Flow diagram](/diagrams/skill-discovery-flow.png)
 
-4. **查看结果**
+4. **View results**
 
-搜索结果会实时更新，显示匹配的技能包列表。
+   Search results update in real time, showing the list of matching skill packages.
 
-5. **查看详情**
+5. **View details**
 
-点击技能包卡片，查看详细信息、版本历史、文件列表。
+   Click a skill package card to view detailed information, version history, and file list.
 
-6. **安装使用**
+6. **Install and use**
 
-找到合适的技能包后，使用 CLI 命令安装或点击「下载」按钮。
+   Once you find a suitable skill package, install it using the CLI command or click the "Download" button.
 
-## API 接口
+## API Reference
 
-**搜索技能包**：
+**Search skill packages**:
 ```bash
 GET /api/web/skills?q=pdf&namespace=iflytek&label=data-processing&sort=downloads&page=0&size=20
 ```
 
-**参数说明**：
-| 参数 | 类型 | 说明 |
+**Parameter description**:
+| Parameter | Type | Description |
 |------|------|------|
-| q | string | 搜索关键词（可选） |
-| namespace | string | 命名空间过滤（可选） |
-| label | string[] | 标签过滤（可选，可多选） |
-| sort | enum | 排序方式：relevance（相关性）、downloads（下载量）、rating（评分）、updated（更新时间） |
-| page | number | 页码（从 0 开始） |
-| size | number | 每页数量（默认 20，最大 100） |
+| q | string | Search keyword (optional) |
+| namespace | string | Namespace filter (optional) |
+| label | string[] | Tag filter (optional, multiple values allowed) |
+| sort | enum | Sort order: relevance, downloads, rating, updated |
+| page | number | Page number (starting from 0) |
+| size | number | Items per page (default 20, max 100) |
 
-**响应示例**：
+**Response example**:
 ```json
 {
   "content": [
@@ -133,11 +133,11 @@ GET /api/web/skills?q=pdf&namespace=iflytek&label=data-processing&sort=downloads
 }
 ```
 
-## 注意事项
+## Notes
 
-> **权限控制**：搜索结果会根据用户权限自动过滤。PRIVATE 技能包只对命名空间成员可见，INTERNAL 技能包只对登录用户可见。
+> **Access control**: Search results are automatically filtered based on user permissions. PRIVATE skill packages are only visible to namespace members; INTERNAL skill packages are only visible to logged-in users.
 
-- **搜索性能**：SkillHub 使用 PostgreSQL 全文搜索，支持中英文分词
-- **实时更新**：新发布的技能包会立即出现在搜索结果中
-- **标签规范**：建议使用统一的标签命名规范，便于过滤
-- **搜索提示**：支持搜索建议和自动补全（前端实现）
+- **Search performance**: SkillHub uses PostgreSQL full-text search with Chinese and English word segmentation
+- **Real-time updates**: Newly published skill packages appear in search results immediately
+- **Tag standards**: It is recommended to use consistent tag naming conventions to facilitate filtering
+- **Search suggestions**: Supports search suggestions and auto-completion (implemented on the frontend)

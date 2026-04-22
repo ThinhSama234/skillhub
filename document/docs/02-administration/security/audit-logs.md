@@ -1,38 +1,38 @@
 ---
-title: 审计日志
+title: Audit Logs
 sidebar_position: 3
-description: 操作审计日志查询与管理
+description: Querying and managing operation audit logs
 ---
 
-# 审计日志
+# Audit Logs
 
-SkillHub 记录所有关键操作的审计日志，满足企业合规要求。
+SkillHub records audit logs for all critical operations to meet enterprise compliance requirements.
 
-## 审计范围
+## Audit Scope
 
-记录的操作包括：
-- 技能发布、下载、删除
-- 审核通过、拒绝
-- 用户登录、登出
-- 权限变更
-- 命名空间管理
-- 配置变更
+Recorded operations include:
+- Skill publishing, downloading, and deletion
+- Review approvals and rejections
+- User logins and logouts
+- Permission changes
+- Namespace management
+- Configuration changes
 
-## 审计日志查询
+## Querying Audit Logs
 
-通过管理后台审计日志页面或 Admin API 查询。
+Audit logs can be queried through the admin panel's Audit Logs page or via the Admin API.
 
-## 日志字段
+## Log Fields
 
-- 操作时间
-- 操作用户
-- 操作类型
-- 目标资源
-- 客户端 IP
+- Operation time
+- Operating user
+- Operation type
+- Target resource
+- Client IP
 - User-Agent
-- 请求 ID
-- 详细信息
+- Request ID
+- Details
 
-## 下一步
+## Next Steps
 
-- [命名空间管理](../governance/namespaces) - 管理组织
+- [Namespace Management](../governance/namespaces) - Manage your organization
